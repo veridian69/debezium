@@ -1,0 +1,20 @@
+# Runtime output (bind mounts)
+logs/*
+!logs/.gitkeep
+runs/*
+!runs/.gitkeep
+
+# Goldilocks ephemeral execution frontier and worker contracts
+.goldilocks/
+
+# token-saver session state
+.token-saver/
+
+# Codex local session data
+.codex/sessions/
+
+# Java build output (host-side, if any)
+receiver/target/
+
+__pycache__/
+*.pyc

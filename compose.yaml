@@ -1,0 +1,113 @@
+name: dbzproof
+
+# Debezium Server plumbing proof: PostgreSQL -> Debezium Server (HTTP sink) -> Java receiver.
+# Owner of this file: Lead. Component owners edit only their own directories.
+# Versions are pinned in .env; credentials are local development only.
+
+services:
+  postgres:
+    image: postgres:${POSTGRES_IMAGE_TAG}
+    container_name: dbzproof-postgres
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+    environment:
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${PG_DATABASE}
+    ports:
+      - "127.0.0.1:${PG_HOST_PORT}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER} -d ${PG_DATABASE} -h 127.0.0.1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  receiver:
+    build:
+      context: ./receiver
+      args:
+        MAVEN_IMAGE_TAG: ${MAVEN_IMAGE_TAG}
+        JRE_IMAGE_TAG: ${JRE_IMAGE_TAG}
+    image: dbzproof/receiver:local
+    container_name: dbzproof-receiver
+    user: "${HOST_UID}:${HOST_GID}"
+    environment:
+      PORT: "8080"
+      EVENTS_FILE: /logs/events.jsonl
+      RECEIPTS_FILE: /logs/receipts.jsonl
+      DIAG_FILE: /logs/receiver.log
+    ports:
+      - "127.0.0.1:${RECEIVER_HOST_PORT}:8080"
+    volumes:
+      - ./logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8080/health >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  debezium:
+    image: quay.io/debezium/server:${DEBEZIUM_IMAGE_TAG}
+    container_name: dbzproof-debezium
+    # No restart policy on purpose so the failure mode is observable. Observed on
+    # 3.7.0.Final: when the HTTP retry budget is exhausted the embedded engine
+    # stops, the container keeps running, /q/health reports DOWN and Compose marks
+    # it unhealthy. Recovery is an explicit `docker compose restart debezium`
+    # (`make recover`, see README).
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      receiver:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${DEBEZIUM_HOST_PORT}:8080"
+    volumes:
+      - ./debezium/application.properties:/debezium/config/application.properties:ro
+      - debezium_data:/debezium/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://127.0.0.1:8080/q/health >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 10s
+
+  # Manually invoked. Never started by `docker compose up` (profile "tools").
+  # Usage: RUN_ID=r1 docker compose run --rm generator
+  generator:
+    image: postgres:${POSTGRES_IMAGE_TAG}
+    profiles: ["tools"]
+    user: "${HOST_UID}:${HOST_GID}"
+    entrypoint: ["/generator/generate.sh"]
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: ${PG_USER}
+      PGPASSWORD: ${PG_PASSWORD}
+      PGDATABASE: ${PG_DATABASE}
+      RUN_ID: ${RUN_ID:-}
+      RUNS_DIR: /runs
+    volumes:
+      - ./generator:/generator:ro
+      - ./runs:/runs
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  # Deleted only by `make reset` (docker compose down -v). Ordinary stop/start keeps them.
+  pg_data:
+    name: dbzproof_pg_data
+  debezium_data:
+    name: dbzproof_debezium_data
