@@ -2,9 +2,11 @@
 
 [English](README-en.md)
 
-Ausführliche Dokumentation: [Operator Guide](docs/operator-guide.md),
-[Offline Installation auf Oracle Linux 8](docs/oracle-linux-8-offline.md) und
-[Entwicklerleitfaden für Cyrille](docs/entwicklerleitfaden-de.md).
+Ausführliche Dokumentation:
+
+- [Operator Guide](docs/operator-guide.md)
+- [Offline Installation auf Oracle Linux 8](docs/oracle-linux-8-offline.md)
+- [Entwicklerleitfaden für Cyrille](docs/entwicklerleitfaden-de.md)
 
 ## Zweck
 
