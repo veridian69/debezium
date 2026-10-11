@@ -74,18 +74,25 @@ Superuser-Zugangsdaten für die Demonstration; der Netzwerkverkehr zum Empfänge
 unverschlüsseltes HTTP ohne Authentifizierung. Diese Dienste nicht durch eine beiläufige Änderung
 der Loopback-Bindings nach aussen öffnen.
 
-`.env` konfiguriert **nicht** alle Stellen, an denen Ports und Zugangsdaten verwendet werden:
+Alle veröffentlichten Hostports kommen aus `.env`: `PG_HOST_PORT`, `RECEIVER_HOST_PORT` und `DEBEZIUM_HOST_PORT`. `make health` und alle Health-Abfragen des Verifiers verwenden die aufgelöste Compose-Konfiguration, einschliesslich Umgebungs-Overrides. Die Adresstabelle oben zeigt die Standardwerte. Interne Dienstports bleiben unverändert.
 
-- `compose.yaml` liest die Host-Ports und PostgreSQL-Zugangsdaten aus `.env`.
-- `debezium/application.properties` enthält die Literale `dbz`, `dbz`, `appdb`.
-- `verify/verify.py` enthält fest eingetragene Host-URLs auf den Ports 8080 und 8081 sowie
-  in seinem psql-Wrapper die fest eingetragenen Datenbank-Benutzernamen und -Datenbanknamen `dbz` und `appdb`.
-- Die Health-URLs, `psql` und `seed` im `Makefile` enthalten diese Literale ebenfalls.
+Beispiel mit freien Hostports:
 
-Bei Änderungen an Ports oder Zugangsdaten diese Stellen gemeinsam anpassen. Bestehende
-PostgreSQL-Volumes behalten ihre ursprünglichen Benutzer und Datenbanken; Änderungen an
-`POSTGRES_*`-Umgebungsvariablen initialisieren sie nicht neu. Die Datenbankänderung ausdrücklich planen;
-eine Anpassung der Umgebung übernimmt keine Migration.
+```dotenv
+PG_HOST_PORT=15432
+RECEIVER_HOST_PORT=18080
+DEBEZIUM_HOST_PORT=18081
+```
+
+Nach einer Änderung in `.env` die Dienste neu erstellen; `restart` übernimmt keine neuen Portzuordnungen:
+
+```sh
+docker compose up -d --wait --no-build postgres receiver debezium
+```
+
+Datenbank und Offsets bleiben erhalten. Auf dem Offline-Host zusätzlich `--pull never` verwenden.
+
+Die Zugangsdaten bleiben gekoppelt: `compose.yaml` liest sie aus `.env`; `debezium/application.properties`, der psql-Wrapper des Verifiers sowie `psql` und `seed` im Makefile enthalten weiterhin feste Werte für `dbz` / `appdb`. Bei anderen Zugangsdaten diese Stellen gemeinsam ändern. Bestehende PostgreSQL-Volumes behalten Benutzer und Datenbank; Änderungen an `POSTGRES_*` initialisieren oder migrieren sie nicht.
 
 Empfänger und Generator laufen mit `HOST_UID:HOST_GID` aus `.env` (Standardwert
 1000:1000). Auf dem Zielsystem `id -u` und `id -g` prüfen und die Werte vor
@@ -367,7 +374,7 @@ geöffnet wird:
 
 ```sh
 docker compose start receiver
-curl -fs http://127.0.0.1:8080/health
+curl -fs "http://$(docker compose port receiver 8080)/health"
 make recover                       # docker compose restart debezium
 make health
 make ps

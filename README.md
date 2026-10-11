@@ -23,7 +23,23 @@ E reproduzierbare Testufbau für PostgreSQL → Debezium Server → Java-HTTP-Em
 
 ## Vorussetzige
 
-Docker CE und Docker Compose loufe nativ i WSL. Docker Desktop wird nid bruucht. Für d Verifikation bruchts Python 3.12.
+Docker CE und Docker Compose loufe nativ i WSL. Docker Desktop wird nid bruucht. Für Healthchecks und d Verifikation bruchts Python 3.12.
+
+## Hostports
+
+Aui drü veröffentlichte Hostports i `.env` setze. Zum Bispiel, we d Standardports scho belegt si:
+
+```dotenv
+PG_HOST_PORT=15432
+RECEIVER_HOST_PORT=18080
+DEBEZIUM_HOST_PORT=18081
+```
+
+`make health` und dr Verifier bruuche d ufglöste Compose-Portwärt, inklusiv Umgäbigs-Overrides. Intern blybe PostgreSQL uf 5432 und HTTP uf 8080; für anderi Hostports bruchts ke Änderig am Connector oder Empfänger. Nach ere Änderig i `.env` d Dienscht mit em folgende Befähl nöi erstelle. Datebank und Offsets blybe erhalte. Uf Offline-Hosts zuesätzlech `--pull never` aage.
+
+```sh
+docker compose up -d --wait --no-build postgres receiver debezium
+```
 
 ## Schnällstart
 
@@ -40,7 +56,7 @@ Dr Empfänger boue: `make build` (direkt: `docker compose build receiver`).
 
 Dr Stack starte: `make up` (Startbefehl: `docker compose up -d --wait postgres receiver debezium`).
 
-Health prüefe: `make health` (direkt: `curl -fs http://127.0.0.1:8080/health` und `curl -fs http://127.0.0.1:8081/q/health`).
+Health mit de konfigurierten Ports prüefe: `make health`.
 
 Deterministischi Änderige erzüge: `make generate RUN_ID=r1` (direkt: `RUN_ID=r1 docker compose run --rm generator`).
 
@@ -67,7 +83,7 @@ Mit `make reset` zruggsetze (Compose-Befehl: `docker compose --profile tools dow
 
 ## Schnittstellevertrag
 
-Dr Empfänger bietet `POST /events` und `GET /health`; Debezium-Health isch über `GET /q/health` uf Port 8081 erreichbar. Event-POSTs enthalte s vollständige Debezium-Envelope (`before`, `after`, `source`, `transaction`, `op` und Zitstämpfle), ke aggregierti oder us em Envelope useglösti Zeile. JSON-Schema-Metadate und Delete-Tombstones si deaktiviert; Delete-Envelopes blybe erhalte. `logs/receipts.jsonl` enthaltet als separati Begleitdatei dr Receipt-Zitstämpfel, d Methode, dr Pfad, dr Status, d Byteazahl, normalisierti Header und e Ereigniszusammefassig; si verändert `logs/events.jsonl` nid.
+Dr Empfänger bietet `POST /events` und `GET /health`; Debezium-Health isch über `GET /q/health` uf em konfigurierten Hostport erreichbar (Standard 8081). Event-POSTs enthalte s vollständige Debezium-Envelope (`before`, `after`, `source`, `transaction`, `op` und Zitstämpfle), ke aggregierti oder us em Envelope useglösti Zeile. JSON-Schema-Metadate und Delete-Tombstones si deaktiviert; Delete-Envelopes blybe erhalte. `logs/receipts.jsonl` enthaltet als separati Begleitdatei dr Receipt-Zitstämpfel, d Methode, dr Pfad, dr Status, d Byteazahl, normalisierti Header und e Ereigniszusammefassig; si verändert `logs/events.jsonl` nid.
 
 ## Retry Istellige
 

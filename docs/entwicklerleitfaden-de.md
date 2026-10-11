@@ -25,9 +25,9 @@ Es gibt keinen Kafka-Broker. Debezium Server betreibt den PostgreSQL-Connector a
 
 | Dienst | Funktion | Zustand und Zugriff |
 |---|---|---|
-| `postgres` | Quelldatenbank `appdb`, logische Replikation mit `pgoutput` | Volume `dbzproof_pg_data`; Hostport 5432 |
-| `debezium` | Initialer Snapshot, danach WAL-basierte Änderungserfassung und HTTP-Zustellung | Volume `dbzproof_debezium_data` für `offsets.dat`; Health auf Hostport 8081 |
-| `receiver` | `POST /events`, `GET /health`; Speicherung und Empfangsdiagnostik | Bind-Mount `logs/`; Hostport 8080 |
+| `postgres` | Quelldatenbank `appdb`, logische Replikation mit `pgoutput` | Volume `dbzproof_pg_data`; Hostport aus `PG_HOST_PORT` (Standard 5432) |
+| `debezium` | Initialer Snapshot, danach WAL-basierte Änderungserfassung und HTTP-Zustellung | Volume `dbzproof_debezium_data` für `offsets.dat`; Health auf Hostport aus `DEBEZIUM_HOST_PORT` (Standard 8081) |
+| `receiver` | `POST /events`, `GET /health`; Speicherung und Empfangsdiagnostik | Bind-Mount `logs/`; Hostport aus `RECEIVER_HOST_PORT` (Standard 8080) |
 | `generator` | Manuell gestartetes SQL-Szenario; schreibt Erwartungen und Manifest | Compose-Profil `tools`; Bind-Mount `runs/` |
 
 Alle veröffentlichten Ports sind an `127.0.0.1` gebunden. Die Zugangsdaten `dbz` / `dbz` sind lokale Demonstrationsdaten mit Superuser-Rechten. HTTP besitzt weder TLS noch Authentifizierung. Für diesen Versuch reicht das. Für ein produktives System wäre es zu wenig.
@@ -57,7 +57,7 @@ make health
 make verify
 ```
 
-`logs/` und `runs/` müssen für diese UID/GID schreibbar sein. Die Ports 5432, 8080 und 8081 müssen frei sein. Die Versionspins stehen in `.env`.
+`logs/` und `runs/` müssen für diese UID/GID schreibbar sein. Die in `.env` gesetzten Hostports müssen frei sein (Standard: 5432, 8080 und 8081). `make health` und der Verifier verwenden die aufgelösten Compose-Portwerte. Nach einer Portänderung die Dienste mit `docker compose up -d --wait --no-build postgres receiver debezium` neu erstellen; `restart` übernimmt die Änderung nicht. Offline zusätzlich `--pull never` verwenden. Die Versionspins stehen in `.env`.
 
 Für einen erneuten vollständigen Test mit derselben Snapshot-Fixture braucht es eine leere Datenbank, leere Offsets und frische Logs. Vorher gewünschte Belege ausserhalb von `logs/` und `runs/` sichern:
 
@@ -251,7 +251,7 @@ Bei zusammengesetzten beziehungsweise anderen Primärschlüsseln die derzeit auf
 | Durchsatz und Backpressure | Datenmenge erhöhen; Ressourcen und Sink ändern | Latenzverteilung, Durchsatz, Queue-/WAL-Wachstum, CPU, Speicher und Disk-I/O messen |
 | DDL und Schemaänderungen | Spalten hinzufügen, ändern oder entfernen | Envelope-Form, Decoderverhalten und Verarbeitung im Ziel prüfen |
 
-HTTP-Batching ist derzeit deaktiviert. Einfaches Einschalten verändert den Payload-Vertrag; Empfänger, Logformat und Verifier müssen dann auf die tatsächliche Batch-Repräsentation angepasst werden. Ebenso sind Credentials und Hostports nicht durchgehend parametrisiert: `.env`, Connector-Konfiguration, Makefile und Verifier enthalten teilweise dieselben Werte als Literale und müssen gemeinsam geändert werden.
+HTTP-Batching ist derzeit deaktiviert. Einfaches Einschalten verändert den Payload-Vertrag; Empfänger, Logformat und Verifier müssen dann auf die tatsächliche Batch-Repräsentation angepasst werden. Hostports werden durchgehend über `.env` beziehungsweise die aufgelöste Compose-Konfiguration gesteuert. Credentials sind weiterhin teilweise als Literale in `.env`, Connector-Konfiguration, Makefile und Verifier vorhanden und müssen gemeinsam geändert werden.
 
 Für grössere Lasttests liest der aktuelle Verifier wiederholt die gesamte Ereignisdatei und sucht Matches verschachtelt. Für kleine Funktionsproben reicht das. Für belastbare Messungen inkrementell lesen, nach Ereignisidentität indexieren und die Messung vom Prüfaufwand trennen. Die beiden Named Volumes und die Container haben feste Namen; ein zweites Checkout auf demselben Docker-Daemon ist daher ohne Anpassungen kein unabhängiger Testaufbau.
 

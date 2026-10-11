@@ -20,6 +20,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+if __package__:
+    from .host_health import ConfigurationError, load_health_urls
+else:
+    from host_health import ConfigurationError, load_health_urls
+
 ROOT = Path(__file__).resolve().parent.parent
 LOGS = ROOT / "logs"
 RUNS = ROOT / "runs"
@@ -180,6 +185,7 @@ def utc_id(prefix: str) -> str:
 
 class Verifier:
     def __init__(self) -> None:
+        self.health_urls = load_health_urls()
         self.observations: dict[str, Any] = {"started_at": datetime.now(timezone.utc).isoformat(), "checks": {}}
         self.delivery_samples: list[float] = []
 
@@ -252,8 +258,8 @@ class Verifier:
             def get(url: str) -> tuple[int, str]:
                 with urllib.request.urlopen(url, timeout=5) as response:
                     return response.status, response.read().decode("utf-8")
-            receiver_status, receiver_body = get("http://127.0.0.1:8080/health")
-            debezium_status, _ = get("http://127.0.0.1:8081/q/health")
+            receiver_status, receiver_body = get(self.health_urls["receiver"])
+            debezium_status, _ = get(self.health_urls["debezium"])
             decoded = json.loads(receiver_body)
             tail = subprocess.run(["tail", "-n", "1", str(LOGS / "events.jsonl")], capture_output=True, text=True, check=True)
             json.loads(tail.stdout)
@@ -378,7 +384,7 @@ class Verifier:
                 if state == "exited" or health == "unhealthy":
                     return state, code, health
                 try:
-                    with urllib.request.urlopen("http://127.0.0.1:8081/q/health", timeout=3) as response:
+                    with urllib.request.urlopen(self.health_urls["debezium"], timeout=3) as response:
                         healthy = response.status == 200
                 except urllib.error.HTTPError:
                     healthy = False
@@ -422,10 +428,9 @@ class Verifier:
             if not self._all_healthy():
                 compose("restart", "debezium", allow_failure=True)
 
-    @staticmethod
-    def _receiver_up() -> bool:
+    def _receiver_up(self) -> bool:
         try:
-            with urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=3) as response:
+            with urllib.request.urlopen(self.health_urls["receiver"], timeout=3) as response:
                 return response.status == 200
         except (urllib.error.URLError, OSError, http.client.HTTPException):
             return False
@@ -457,7 +462,7 @@ class Verifier:
         if states != ["running", "running", "running"] or not self._receiver_up():
             return False
         try:
-            with urllib.request.urlopen("http://127.0.0.1:8081/q/health", timeout=3) as response:
+            with urllib.request.urlopen(self.health_urls["debezium"], timeout=3) as response:
                 return response.status == 200
         except (urllib.error.URLError, OSError, http.client.HTTPException):
             return False
@@ -487,7 +492,11 @@ def main() -> int:
     sub.add_parser("restart")
     sub.add_parser("all")
     args = parser.parse_args()
-    verifier = Verifier()
+    try:
+        verifier = Verifier()
+    except ConfigurationError as error:
+        print("verification configuration error: %s" % error, file=sys.stderr)
+        return 1
     if args.command == "health": ok = verifier.health()
     elif args.command == "snapshot": ok = verifier.snapshot()
     elif args.command == "scenario": ok, _ = verifier.scenario(args.run_id)

@@ -25,9 +25,9 @@ Es git ke Kafka-Broker. Debezium Server betreibt dr PostgreSQL-Connector als ibe
 
 | Dienscht | Funktion | Zuestand und Zuegriff |
 |---|---|---|
-| `postgres` | Quelldatebank `appdb`, logische Replikation mit `pgoutput` | Volume `dbzproof_pg_data`; Hostport 5432 |
-| `debezium` | Initiale Snapshot, dernah WAL-basierte Änderigserfassig und HTTP-Zuestellig | Volume `dbzproof_debezium_data` für `offsets.dat`; Health uf Hostport 8081 |
-| `receiver` | `POST /events`, `GET /health`; Speichere und Empfangsdiagnostik | Bind-Mount `logs/`; Hostport 8080 |
+| `postgres` | Quelldatebank `appdb`, logische Replikation mit `pgoutput` | Volume `dbzproof_pg_data`; Hostport us `PG_HOST_PORT` (Standard 5432) |
+| `debezium` | Initiale Snapshot, dernah WAL-basierte Änderigserfassig und HTTP-Zuestellig | Volume `dbzproof_debezium_data` für `offsets.dat`; Health uf Hostport us `DEBEZIUM_HOST_PORT` (Standard 8081) |
+| `receiver` | `POST /events`, `GET /health`; Speichere und Empfangsdiagnostik | Bind-Mount `logs/`; Hostport us `RECEIVER_HOST_PORT` (Standard 8080) |
 | `generator` | Manuell gstartets SQL-Szenario; schribt Erwartige und Manifest | Compose-Profil `tools`; Bind-Mount `runs/` |
 
 Alli veröffentlichte Ports si a `127.0.0.1` bunde. D Zuegangsdate `dbz` / `dbz` si lokali Demonstrationsdate mit Superuser-Rächt. HTTP het weder TLS no Authentifizierig. Für dä Versuech längt das. Für es produktivs System wär's z wenig.
@@ -57,7 +57,7 @@ make health
 make verify
 ```
 
-`logs/` und `runs/` müesse für die UID/GID beschribbar si. D Ports 5432, 8080 und 8081 müesse frei si. D Versionspins stöh i `.env`.
+`logs/` und `runs/` müesse für die UID/GID beschribbar si. D Hostports us `.env` müesse frei si (Standard: 5432, 8080 und 8081). `make health` und dr Verifier bruuche d ufglöste Compose-Portwärt. Nach ere Portänderig d Dienscht mit `docker compose up -d --wait --no-build postgres receiver debezium` nöi erstelle; `restart` übernimmt d Änderig nid. Offline zuesätzlech `--pull never` bruuche. D Versionspins stöh i `.env`.
 
 Für e erneute vollständige Test mit derselbe Snapshot-Fixture bruucht's e lääri Datebank, lääri Offsets und frische Logs. Vorhär gwünschti Beleg usserhalb vo `logs/` und `runs/` sichere:
 
@@ -251,7 +251,7 @@ Bi zämegsetzte beziehungsweise andere Primärschlüssel die zurzyt uf `id` fesc
 | Durchsatz und Backpressure | Datemängi erhöhe; Ressource und Sink ändere | Latenzverteilig, Durchsatz, Queue-/WAL-Wachstum, CPU, Speicher und Disk-I/O mässe |
 | DDL und Schemaänderige | Spalte derzuefüege, ändere oder entferne | Envelope-Form, Decoderverhalte und Verarbeitig im Ziel prüefe |
 
-HTTP-Batching isch zurzyt deaktiviert. Eifachs Iischalte verändert dr Payload-Vertrag; Empfänger, Logformat und Verifier müesse de uf die tatsächlechi Batch-Repräsentation apasst wärde. Ebenso si Credentials und Hostports nid düregehend parametrisiert: `.env`, Connector-Konfiguration, Makefile und Verifier enthalte teilweise dieselbe Wärt als Literale und müesse zäme gänderet wärde.
+HTTP-Batching isch zurzyt deaktiviert. Eifachs Iischalte verändert dr Payload-Vertrag; Empfänger, Logformat und Verifier müesse de uf die tatsächlechi Batch-Repräsentation apasst wärde. Hostports wärde düregehend über `.env` beziehungsweise d ufglösti Compose-Konfiguration gstüürt. Credentials si wyterhi teilweise als Literale i `.env`, Connector-Konfiguration, Makefile und Verifier vorhande und müesse zäme gänderet wärde.
 
 Für grössere Lasttests list dr aktuelli Verifier wiederholt die ganzi Ereignisdatei und suecht Matches verschachtlet. Für chlyni Funktionsprobe längt das. Für belastbari Mässige inkrementell läse, nach Ereignisidentität indexiere und d Mässig vom Prüefufwand trenne. Die beide Named Volumes und d Container hei feschti Näme; es zwöits Checkout uf demselbe Docker-Daemon isch drum ohni Apassige ke unabhängige Testufbau.
 

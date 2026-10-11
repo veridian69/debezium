@@ -71,18 +71,25 @@ Credentials are `dbz` / `dbz`, database `appdb`. These are demonstration
 superuser credentials, and receiver traffic is plain HTTP without authentication.
 Do not expose these services by changing loopback bindings casually.
 
-`.env` does **not** configure every consumer of ports and credentials:
+All published host ports come from `.env`: `PG_HOST_PORT`, `RECEIVER_HOST_PORT` and `DEBEZIUM_HOST_PORT`. `make health` and all verifier health probes use the resolved Compose configuration, including environment overrides. The address table above shows the defaults. Internal service ports stay unchanged.
 
-- `compose.yaml` reads the host ports and PostgreSQL credentials from `.env`.
-- `debezium/application.properties` contains literal `dbz`, `dbz`, `appdb`.
-- `verify/verify.py` contains literal host URLs on ports 8080 and 8081, and
-  literal database user/database names `dbz` and `appdb` in its psql wrapper.
-- `Makefile` health URLs, `psql` and `seed` also contain those literals.
+For example, use free host ports:
 
-Change these together if moving ports or credentials. Existing PostgreSQL
-volumes retain their original users and database; changing `POSTGRES_*`
-environment variables does not reinitialise them. Plan the database change
-explicitly; an environment edit will not migrate it.
+```dotenv
+PG_HOST_PORT=15432
+RECEIVER_HOST_PORT=18080
+DEBEZIUM_HOST_PORT=18081
+```
+
+After editing `.env`, recreate the services; `restart` does not apply new port mappings:
+
+```sh
+docker compose up -d --wait --no-build postgres receiver debezium
+```
+
+This preserves database data and offsets. On the offline host, also use `--pull never`.
+
+Credentials remain coupled: `compose.yaml` reads them from `.env`, while `debezium/application.properties`, the verifier's psql wrapper and the Makefile's `psql` and `seed` targets still contain literal `dbz` / `appdb` values. Change those together if changing credentials. Existing PostgreSQL volumes retain their original users and database; changing `POSTGRES_*` does not reinitialise or migrate them.
 
 The receiver and generator run as `HOST_UID:HOST_GID` from `.env` (default
 1000:1000). Check `id -u` and `id -g` on the target and set them appropriately
@@ -345,7 +352,7 @@ Restore the receiver and restart Debezium to reopen the engine:
 
 ```sh
 docker compose start receiver
-curl -fs http://127.0.0.1:8080/health
+curl -fs "http://$(docker compose port receiver 8080)/health"
 make recover                       # docker compose restart debezium
 make health
 make ps

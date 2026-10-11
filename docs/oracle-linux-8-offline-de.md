@@ -351,8 +351,8 @@ Auf **Oracle Linux** im Stammverzeichnis der Installation ausführen:
 ```bash
 docker compose up -d --wait --no-build --pull never postgres receiver debezium
 docker compose ps
-curl -fsS http://127.0.0.1:8080/health
-curl -fsS http://127.0.0.1:8081/q/health
+curl -fsS "http://$(docker compose port receiver 8080)/health"
+curl -fsS "http://$(docker compose port debezium 8080)/q/health"
 ```
 
 **`make up` nicht auf dem Offline-Host verwenden.** Dessen Ziel
@@ -533,7 +533,7 @@ vorübergehenden Zustellausfall zu beheben.
 | `exec format error` | Architektur stimmt nicht überein. Auf einer passenden Architektur neu bauen und exportieren; ein geladenes Image wird dadurch nicht konvertiert. |
 | Unbekannte Option oder `pull_policy` wird abgelehnt | Compose ist zu alt oder es wird das falsche Programm verwendet. Über den freigegebenen Offline-Weg ein kompatibles Plugin bereitstellen. |
 | Keine Schreibberechtigung für Logs/Runs | Falsche Host-UID/GID, Dateien wurden von einem anderen Konto extrahiert oder das Dateisystem ist schreibgeschützt. `id`, `.env` und `ls -ld logs runs` prüfen. SELinux ist in dieser Umgebung deaktiviert. |
-| Port bereits belegt | Ein vorhandener Dienst verwendet Port 5432, 8080 oder 8081. `ss -ltn` prüfen; die URLs des Verifiers sind fest codiert und müssen vor einer Portänderung berücksichtigt werden. |
+| Port bereits belegt | Ein konfigurierter Hostport ist belegt. `ss -ltn` prüfen, freie Werte für `PG_HOST_PORT`, `RECEIVER_HOST_PORT` und `DEBEZIUM_HOST_PORT` in `.env` setzen und mit dem No-Build/No-Pull-Befehl neu erstellen. Healthchecks und Verifier folgen diesen Werten. |
 | PostgreSQL startet mit unerwartet alten Daten | Das feste benannte Volume existiert bereits. Anhalten und den Zustand untersuchen; ein neues Quellverzeichnis erzeugt keinen neuen Volume-Namen. |
 | Snapshot-Verifier schlägt fehl | Kein frischer Seed-/Snapshot-Verlauf, Logs wurden entfernt, während Offsets erhalten blieben, oder der Start ist fehlgeschlagen. Vor einem destruktiven Reset den Operator Guide lesen. |
 | Debezium läuft, ist aber nicht gesund | Den Zustand des Empfängers und die Debezium-Logs prüfen. Nach ausgeschöpften Wiederholungsversuchen muss Debezium ausdrücklich neu gestartet werden, sobald der Empfänger wiederhergestellt ist. |

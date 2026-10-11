@@ -23,7 +23,23 @@ A reproducible test rig for PostgreSQL → Debezium Server → Java HTTP receive
 
 ## Prerequisites
 
-Docker CE and Docker Compose running natively in WSL. Docker Desktop is not used. Python 3.12 is needed for verification.
+Docker CE and Docker Compose running natively in WSL. Docker Desktop is not used. Python 3.12 is needed for health checks and verification.
+
+## Host ports
+
+Set all three published host ports in `.env`. For example, if the defaults are occupied:
+
+```dotenv
+PG_HOST_PORT=15432
+RECEIVER_HOST_PORT=18080
+DEBEZIUM_HOST_PORT=18081
+```
+
+`make health` and the verifier use the resolved Compose port settings, including environment overrides. Internal container ports stay at 5432 for PostgreSQL and 8080 for HTTP; changing host ports needs no connector or receiver changes. After editing `.env`, recreate the services with the command below. This preserves database data and offsets. For offline hosts, add `--pull never`.
+
+```sh
+docker compose up -d --wait --no-build postgres receiver debezium
+```
 
 ## Quick start
 
@@ -40,7 +56,7 @@ Build the receiver: `make build` (direct: `docker compose build receiver`).
 
 Start the stack: `make up` (direct: `docker compose up -d --wait postgres receiver debezium`).
 
-Check health: `make health` (direct: `curl -fs http://127.0.0.1:8080/health` and `curl -fs http://127.0.0.1:8081/q/health`).
+Check health with the configured ports: `make health`.
 
 Generate a deterministic change set: `make generate RUN_ID=r1` (direct: `RUN_ID=r1 docker compose run --rm generator`).
 
@@ -67,7 +83,7 @@ Reset with `make reset` (Compose command: `docker compose --profile tools down -
 
 ## Contract
 
-The receiver exposes `POST /events` and `GET /health`; Debezium health is `GET /q/health` on port 8081. Event posts contain the full Debezium envelope (`before`, `after`, `source`, `transaction`, `op`, and timestamps), not an aggregate or unwrapped row. JSON schema metadata is disabled and delete tombstones are disabled, while delete envelopes themselves are retained. `logs/receipts.jsonl` is a sidecar containing request time, method, path, status, byte count, normalized headers, and an event summary; it does not alter `logs/events.jsonl`.
+The receiver exposes `POST /events` and `GET /health`; Debezium health is `GET /q/health` on the configured host port (default 8081). Event posts contain the full Debezium envelope (`before`, `after`, `source`, `transaction`, `op`, and timestamps), not an aggregate or unwrapped row. JSON schema metadata is disabled and delete tombstones are disabled, while delete envelopes themselves are retained. `logs/receipts.jsonl` is a sidecar containing request time, method, path, status, byte count, normalized headers, and an event summary; it does not alter `logs/events.jsonl`.
 
 ## Retry settings
 

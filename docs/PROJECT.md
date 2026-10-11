@@ -34,7 +34,7 @@ generator (psql, manual) ──▶ PostgreSQL 18.6 ──pgoutput/dbz_slot──
 ## Fixed interfaces
 
 - Compose project name `dbzproof`; services `postgres`, `receiver`, `debezium`, `generator` (profile `tools`).
-- Host ports (localhost only): 5432 PostgreSQL, 8080 receiver, 8081 Debezium Quarkus health.
+- Host ports (localhost only): configured in `.env` via `PG_HOST_PORT`, `RECEIVER_HOST_PORT` and `DEBEZIUM_HOST_PORT` (defaults 5432, 8080, 8081). Health commands and the verifier use resolved Compose port settings; internal service ports stay fixed.
 - Credentials: `dbz` / `dbz` / `appdb`. Local development only.
 - All tables: primary key `id bigint generated always as identity`. Money as integer cents. No numeric columns.
 - Debezium: `topic.prefix=plumbing`, slot `dbz_slot`, publication `dbz_publication`, JSON without schema metadata, tombstones disabled.

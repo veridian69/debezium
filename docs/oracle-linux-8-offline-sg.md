@@ -351,8 +351,8 @@ Uf **Oracle Linux** im Stammverzeichnis vo dr Installation usfüehre:
 ```bash
 docker compose up -d --wait --no-build --pull never postgres receiver debezium
 docker compose ps
-curl -fsS http://127.0.0.1:8080/health
-curl -fsS http://127.0.0.1:8081/q/health
+curl -fsS "http://$(docker compose port receiver 8080)/health"
+curl -fsS "http://$(docker compose port debezium 8080)/q/health"
 ```
 
 **`make up` nid uf em Offline-Host bruuche.** S Ziel
@@ -533,7 +533,7 @@ vorübergehende Zuestellusfall z behebe.
 | `exec format error` | D Architektur stimmt nid überein. Uf ere passende Architektur nöi baue und exportiere; es gladenes Image wird derdür nid konvertiert. |
 | Unbekannti Option oder `pull_policy` wird abglehnt | Compose isch z alt oder es wird s fausche Programm bruucht. Über dr freigegebene Offline-Wäg es kompatibles Plugin bereitstelle. |
 | Ke Schrybberechtigung für Logs/Runs | Fauschi Host-UID/GID, d Dateie si vo mene andere Konto extrahiert worde oder s Dateisystem isch schrybgschützt. `id`, `.env` und `ls -ld logs runs` prüefe. SELinux isch i dere Umgäbig deaktiviert. |
-| Port bereits belegt | E vorhandene Dienscht brucht Port 5432, 8080 oder 8081. `ss -ltn` prüefe; d URLs vom Verifier si fescht codiert und müesse vor ere Portänderig berücksichtigt wärde. |
+| Port bereits belegt | E konfigurierte Hostport isch belegt. `ss -ltn` prüefe, freii Wärt für `PG_HOST_PORT`, `RECEIVER_HOST_PORT` und `DEBEZIUM_HOST_PORT` i `.env` setze und mit em No-Build/No-Pull-Befähl nöi erstelle. Healthchecks und Verifier folge dene Wärt. |
 | PostgreSQL startet mit unerwartet alte Date | S fescht benannte Volume existiert bereits. Ahalte und dr Zuestand untersueche; es nöis Quellverzeichnis erzeugt ke nöie Volume-Name. |
 | Dr Snapshot-Verifier schlaht fähl | Ke frische Seed-/Snapshot-Verlauf, Logs si entfärnt worde, während Offsets erhalte blibe si, oder dr Start isch fählgschlage. Vor eme destruktive Reset dr Operator Guide läse. |
 | Debezium louft, isch aber nid gsund | Dr Zuestand vom Empfänger und d Debezium-Logs prüefe. Nach usgschöpfte Wiederholigsversuech muess Debezium ausdrücklich nöi gstartet wärde, sobald dr Empfänger wiederhärgstellt isch. |

@@ -32,8 +32,7 @@ ps:
 	$(COMPOSE) ps
 
 health:           ## Receiver and Debezium health endpoints
-	@echo "receiver:"; curl -fs http://127.0.0.1:8080/health; echo
-	@echo "debezium:"; curl -fs http://127.0.0.1:8081/q/health; echo
+	python3 verify/host_health.py
 
 logs:             ## Container logs (follow)
 	$(COMPOSE) logs -f --tail=100

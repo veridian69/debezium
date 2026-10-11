@@ -74,18 +74,25 @@ Superuser-Zuegangsdate für d Demonstration; dr Netzwerkverkehr zum Empfänger v
 unverschlüsslets HTTP ohni Authentifizierig. Die Dienscht nid dür e beiläufigi Änderig
 vo de Loopback-Bindings nach usse öffne.
 
-`.env` konfiguriert **nid** aui Stelle, wo Ports und Zuegangsdate verwendet werde:
+Aui veröffentlichte Hostports chöme us `.env`: `PG_HOST_PORT`, `RECEIVER_HOST_PORT` und `DEBEZIUM_HOST_PORT`. `make health` und aui Health-Abfrage vom Verifier bruuche d ufglösti Compose-Konfiguration, inklusiv Umgäbigs-Overrides. D Adresstabelle obe zeigt d Standardwärt. Interni Dienschtports blybe unveränderet.
 
-- `compose.yaml` liist d Host-Ports und PostgreSQL-Zuegangsdate us `.env`.
-- `debezium/application.properties` enthält d Literale `dbz`, `dbz`, `appdb`.
-- `verify/verify.py` enthält fescht iitragni Host-URLs uf de Ports 8080 und 8081 sowie
-  i sim psql-Wrapper d fescht iitragne Datebank-Benutzernäme und Datebanknäme `dbz` und `appdb`.
-- D Health-URLs, `psql` und `seed` im `Makefile` enthalte die Literale o.
+Es Bispiel mit freie Hostports:
 
-Bi Änderige a Ports oder Zuegangsdate die Stelle mitenand apasse. Bestohendi
-PostgreSQL-Volumes bhalte ihri ursprüngleche Benutzer und Datebanke; Änderige a
-`POSTGRES_*`-Umgäbigsvariable initialisiere sie nid nöi. D Datebankänderig ausdrücklich plane;
-e Apassig vo dr Umgäbig übernimmt ke Migration.
+```dotenv
+PG_HOST_PORT=15432
+RECEIVER_HOST_PORT=18080
+DEBEZIUM_HOST_PORT=18081
+```
+
+Nach ere Änderig i `.env` d Dienscht nöi erstelle; `restart` übernimmt ke nöii Portzueordnige:
+
+```sh
+docker compose up -d --wait --no-build postgres receiver debezium
+```
+
+Datebank und Offsets blybe erhalte. Uf em Offline-Host zuesätzlech `--pull never` bruuche.
+
+D Zuegangsdate blybe koppelt: `compose.yaml` liist si us `.env`; `debezium/application.properties`, dr psql-Wrapper vom Verifier sowie `psql` und `seed` im Makefile enthalte wyterhi feschti Wärt für `dbz` / `appdb`. Bi andere Zuegangsdate die Stelle zäme ändere. Bestohendi PostgreSQL-Volumes bhalte Benutzer und Datebank; Änderige a `POSTGRES_*` initialisiere oder migriere si nid.
 
 Empfänger und Generator loufe mit `HOST_UID:HOST_GID` us `.env` (Standardwärt
 1000:1000). Uf em Zielsystem `id -u` und `id -g` prüefe und d Wärt vor
@@ -367,7 +374,7 @@ Dr Empfänger wiederherstelle und Debezium nöi starte, damit d Engine wieder
 
 ```sh
 docker compose start receiver
-curl -fs http://127.0.0.1:8080/health
+curl -fs "http://$(docker compose port receiver 8080)/health"
 make recover                       # docker compose restart debezium
 make health
 make ps

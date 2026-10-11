@@ -328,8 +328,8 @@ On **Oracle Linux**, from the installation root:
 ```bash
 docker compose up -d --wait --no-build --pull never postgres receiver debezium
 docker compose ps
-curl -fsS http://127.0.0.1:8080/health
-curl -fsS http://127.0.0.1:8081/q/health
+curl -fsS "http://$(docker compose port receiver 8080)/health"
+curl -fsS "http://$(docker compose port debezium 8080)/q/health"
 ```
 
 **Do not use `make up` on the offline host.** Its `up` target depends on
@@ -491,7 +491,7 @@ repair a transient delivery outage.
 | `exec format error` | Architecture mismatch. Rebuild/export on the appropriate architecture; loading an image does not convert it. |
 | Unknown flag or `pull_policy` rejected | Compose is too old or the wrong executable. Supply a compatible plugin through the approved offline route. |
 | Permission denied writing logs/runs | Wrong host UID/GID, files extracted by another user, or a read-only filesystem. Check `id`, `.env` and `ls -ld logs runs`. SELinux is disabled in this setup. |
-| Port already allocated | An existing service uses 5432, 8080 or 8081. Inspect `ss -ltn`; remember verifier URLs are hardcoded before changing ports. |
+| Port already allocated | A configured host port is occupied. Check `ss -ltn`, choose free `PG_HOST_PORT`, `RECEIVER_HOST_PORT` and `DEBEZIUM_HOST_PORT` values in `.env`, then recreate with the no-build/no-pull command. Health checks and the verifier follow those settings. |
 | PostgreSQL starts with unexpected old data | The fixed named volume already exists. Stop and investigate; copying a new source directory does not create a new volume name. |
 | Snapshot verifier fails | Not a fresh seed/snapshot history, logs were removed while offsets remained, or startup failed. Read the operator guide before considering a destructive reset. |
 | Debezium running/unhealthy | Inspect receiver health and Debezium logs; retry exhaustion needs an explicit restart after the receiver is restored. |
