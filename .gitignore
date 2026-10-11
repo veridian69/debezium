@@ -13,6 +13,9 @@ runs/*
 # Codex local session data
 .codex/sessions/
 
+# Local Codex configuration
+.codex/config.toml
+
 # Java build output (host-side, if any)
 receiver/target/
 
