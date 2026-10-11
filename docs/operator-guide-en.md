@@ -1,6 +1,6 @@
 # Operator guide: PostgreSQL → Debezium Server → HTTP receiver
 
-[Deutsche Fassung](operator-guide-de.md)
+[Deutsche Fassung](operator-guide-de.md) | [Schweizerdeutsch](operator-guide-sg.md)
 
 This guide explains how to run the proof, what it checks and where its limits lie.
 Run commands from the repository root; paths below are relative to it.

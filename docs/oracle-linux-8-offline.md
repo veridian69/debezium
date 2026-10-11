@@ -1,37 +1,37 @@
-# Den Debezium-Versuchsaufbau offline auf Oracle Linux 8 bereitstellen
+# Dr Debezium-Versuechsufbau offline uf Oracle Linux 8 bereitstelle
 
-Sprache: [English](oracle-linux-8-offline-en.md)
+[Deutsch](oracle-linux-8-offline-de.md) | [English](oracle-linux-8-offline-en.md)
 
-So kommt Jons Versuchsaufbau auf den Offline-Host: auf einer Ubuntu-VM mit
-Internetzugang auf dem Laptop bauen, ein Bundle übertragen und es auf
-einem Oracle-Linux-8-Host mit bereits installiertem Docker CE und deaktiviertem
-SELinux ausführen. Das Ziel benötigt weder Internetzugang noch Maven, ein JDK,
-Git, einen PostgreSQL-Client oder eine Container-Registry.
+So chunnt Jons Versuechsufbau uf dr Offline-Host: uf ere Ubuntu-VM mit
+Internetzuegang uf em Laptop baue, es Bundle übertrage und das uf
+eme Oracle-Linux-8-Host mit bereits installiertem Docker CE und deaktiviertem
+SELinux usfüehre. S Ziel brucht weder Internetzuegang no Maven, es JDK,
+Git, e PostgreSQL-Client oder e Container-Registry.
 
-Damit wird eine **neue Kopie des Versuchsaufbaus** mit einer eigenen,
-vorbefüllten Datenbank und einem initialen Snapshot bereitgestellt. Die aktive
-Datenbank des Laptops, der Replikations-Slot, das Offset-Volume und die
-Ereignishistorie werden nicht migriert. Der Image-Export enthält
-Anwendungs-Images, aber keine Docker-Volumes. Eine bestehende Installation
-muss getrennt bleiben.
+Damit wird e **nöii Kopie vom Versuechsufbau** mit ere eigete,
+vorbefüllte Datebank und eme initiale Snapshot bereitgstellt. D aktive
+Datebank vom Laptop, dr Replikations-Slot, s Offset-Volume und d
+Ereignis-Historie wärde nid migriert. Dr Image-Export enthält
+Awändig-Images, aber ke Docker-Volumes. E bestehendi Installation
+muess separat blibe.
 
-Datenfluss, Ereignisvertrag, Verifizierung und Wiederherstellung sind im
-[Operator Guide](operator-guide.md) beschrieben. Alle Shell-Beispiele verwenden Bash.
-Die Schritte der Reihe nach ausführen; die Rechner mit und ohne
-Netzwerkzugang sind entsprechend gekennzeichnet.
+Datefluss, Ereignisvertrag, Verifizierig und Wiederhärstellig si im
+[Operator Guide](operator-guide-sg.md) beschribe. Alli Shell-Bispil bruuche Bash.
+D Schritt dr Reihe nach usfüehre; d Rächner mit und ohni
+Netzwerkzuegang si entsprechend kennzeichnet.
 
-## 1. Was über die Netzgrenze übertragen wird
+## 1. Was über d Netzgränze übertrage wird
 
-| Bestandteil des Bundles | Zweck |
+| Bestandteil vom Bundle | Zwäck |
 | --- | --- |
-| `images.tar.gz` | PostgreSQL, Debezium Server und der gebaute Java-Empfänger |
-| `project.tar.gz` | Compose-Dateien, `.env`, Init-SQL, Generator, Verifier, Quellcode und Dokumentation |
-| `image-manifest.txt` | Image-IDs, Architektur und verfügbare Repository-Digests |
-| `build-environment.txt` | Quellrevision und Docker-/Compose-Versionen des Build-Hosts |
-| `SHA256SUMS` | Erkennt unvollständige oder beschädigte Übertragungen |
-| Optional: Compose-Binärdatei/RPMs | Nur falls Voraussetzungen auf dem Ziel fehlen |
+| `images.tar.gz` | PostgreSQL, Debezium Server und dr baute Java-Empfänger |
+| `project.tar.gz` | Compose-Dateie, `.env`, Init-SQL, Generator, Verifier, Quellcode und Dokumentation |
+| `image-manifest.txt` | Image-IDs, Architektur und verfüegbari Repository-Digests |
+| `build-environment.txt` | Quellrevision und Docker-/Compose-Versione vom Build-Host |
+| `SHA256SUMS` | Erkennt unvollständigi oder beschädigti Übertragige |
+| Optional: Compose-Binärdatei/RPMs | Nume we uf em Ziel Vorussetzige fähle |
 
-Es werden nur drei Laufzeit-Images benötigt:
+Es brucht nume drü Laufzyt-Images:
 
 ```text
 postgres:18.6-alpine
@@ -39,20 +39,20 @@ quay.io/debezium/server:3.7.0.Final
 dbzproof/receiver:local
 ```
 
-Der Generator verwendet das PostgreSQL-Image erneut: Bash und `psql` werden
-aus diesem Image ausgeführt. Das Maven-Builder-Image und das Java-Basis-Image
-des Empfängers werden während des Builds auf der verbundenen VM benötigt,
-müssen aber nicht separat exportiert werden. Das fertige Empfänger-Image enthält
-bereits Laufzeitumgebung und Abhängigkeiten.
+Dr Generator brucht s PostgreSQL-Image nomau: Bash und `psql` wärde
+us däm Image usgfüehrt. S Maven-Builder-Image und s Java-Basis-Image
+vom Empfänger brucht es bim Build uf dr verbundene VM,
+si müesse aber nid separat exportiert wärde. S fertige Empfänger-Image enthält
+bereits d Laufzytumgäbig und d Abhängigkeiten.
 
-Zum Export [`docker image save`](https://docs.docker.com/reference/cli/docker/image/save/)
-und zum Import [`docker image load`](https://docs.docker.com/reference/cli/docker/image/load/) verwenden.
-Diese Befehle erhalten Image-Layer und Tags. `docker export`/`docker import` arbeiten mit
-Container-Dateisystemen und sind für diesen Zweck ungeeignet.
+Für dr Export [`docker image save`](https://docs.docker.com/reference/cli/docker/image/save/)
+und für dr Import [`docker image load`](https://docs.docker.com/reference/cli/docker/image/load/) bruuche.
+Die Befähl erhalte Image-Layer und Tags. `docker export`/`docker import` schaffe mit
+Container-Dateisysteme und si für dä Zwäck ungeeignet.
 
-## 2. Zuerst das OL8-Ziel prüfen
+## 2. Zersch s OL8-Ziel prüefe
 
-Vor dem Vorbereiten des Bundles auf **Oracle Linux** folgende Informationen erfassen:
+Vor em Vorbereite vom Bundle uf **Oracle Linux** die folgende Informatione erfasse:
 
 ```bash
 cat /etc/oracle-release
@@ -72,73 +72,73 @@ command -v gzip
 command -v sha256sum
 ```
 
-Falls Docker ein anderes Datenverzeichnis verwendet, lässt es sich so ermitteln:
+We Docker es anders Dateverzeichnis brucht, chasch es so ermittle:
 
 ```bash
 docker info --format '{{.DockerRootDir}}'
 ```
 
-Die vollständige Version des Docker-**Servers** und die
-Compose-Version notieren. „Docker CE irgendwas“ genügt für die Planung; ob die Befehle
-funktionieren, hängt von den tatsächlichen Versionen ab. Das
-Compose-Plugin verwenden (`docker compose`), nicht das alte Python-Programm `docker-compose`.
-Prüfen, ob `up --help` die Optionen `--wait`, `--no-build` und
-`--pull` enthält und ob `run --help` die Option `--pull` enthält.
-Im Quellnachweis wurde Compose v5.6.0 verwendet. Das ist eine beobachtete
-Quellversion und keine Behauptung, dass diese Version bereits mit OL8 getestet
-wurde.
+D vollständigi Version vom Docker-**Server** und d
+Compose-Version notiere. «Docker CE irgendöppis» längt für d Planig; öb d Befähl
+funktioniere, hängt vo de tatsächleche Versione ab. S
+Compose-Plugin bruuche (`docker compose`), nid s alte Python-Programm `docker-compose`.
+Prüefe, öb `up --help` d Optione `--wait`, `--no-build` und
+`--pull` enthält und öb `run --help` d Option `--pull` enthält.
+Im Quellnachwys isch Compose v5.6.0 bruucht worde. Das isch e beobachteti
+Quellversion und ke Behauptig, dass die Version bereits mit OL8 testet
+worde isch.
 
-Das ausführende Konto benötigt Zugriff auf den Docker-Daemon. Falls die
-Standortrichtlinien `sudo docker` vorschreiben, entweder ein freigegebenes Konto
-mit Daemon-Zugriff verwenden oder den gesamten Verifier als autorisiertes
-privilegiertes Konto ausführen: Der Verifier startet `docker` selbst
-und fügt `sudo` nicht ein. Die Mitgliedschaft in der Docker-Gruppe gewährt
-faktisch Kontrolle auf Root-Ebene. Diese Mitgliedschaft nicht leichtfertig ändern.
+S usfüehrende Konto brucht Zuegriff uf dr Docker-Daemon. We d
+Standortrichtlinie `sudo docker` vorschrybe, entweder es freigegebes Konto
+mit Daemon-Zuegriff bruuche oder dr ganz Verifier als autorisierts
+privilegierts Konto usfüehre: Dr Verifier startet `docker` säuber
+und füegt kes `sudo` i. D Mitgliedschaft i dr Docker-Gruppe git
+faktisch Kontrolle uf Root-Ebeni. Die Mitgliedschaft nid liechtfertig ändere.
 
-SELinux ist hier wie angegeben deaktiviert. Dieses
-Verfahren erfordert weder eine Neuzuordnung von Labels noch Änderungen an
-Sicherheitsrichtlinien. Die Ports sind an Loopback gebunden; die Host-Firewall
-muss daher für den Fernzugriff auf diesen lokalen Versuchsaufbau nicht
-geöffnet werden.
+SELinux isch hie wie agäh deaktiviert. Das
+Verfahre brucht weder e nöii Zueordnig vo Labels no Änderige a
+Sicherheitsrichtlinie. D Ports si a Loopback bunde; d Host-Firewall
+muess drum für dr Färnzuegriff uf dä lokale Versuechsufbau nid
+ufgmacht wärde.
 
-Ausreichend Platz für das komprimierte Bundle, die geladenen
-Image-Layer, PostgreSQL-Daten, WAL und wachsende Logs einplanen. Die Grösse
-des erstellten Bundles messen, statt sich auf eine Schätzung zu verlassen. Mehrere
-GiB freier Speicher sind ein sinnvoller Ausgangswert, aber keine
-Kapazitätsgarantie. Durch einen Slot zurückgehaltenes WAL kann bei einem
-Ausfall deutlich mehr Platz belegen.
+Gnue Platz für s komprimierte Bundle, d gladenen
+Image-Layer, PostgreSQL-Date, WAL und wachsendi Logs iplane. D Grössi
+vom erstellte Bundle mässe, statt sech uf e Schätzig z verla.
+Mehri GiB freie Speicher si e vernünftige Usgangswärt, aber ke
+Kapazitätsgarantie. WAL, wo e Slot zrügghebt, cha bi eme
+Usfall düütlech meh Platz bruuche.
 
-## 3. CPU-Architektur abgleichen
+## 3. D CPU-Architektur abglyche
 
-Auf der **Ubuntu-VM** ausführen:
+Uf dr **Ubuntu-VM** usfüehre:
 
 ```bash
 uname -m
 docker info --format '{{.Architecture}}'
 ```
 
-| Ausgabe von `uname -m` auf dem Ziel | Container-Plattform |
+| Usgab vo `uname -m` uf em Ziel | Container-Plattform |
 | --- | --- |
 | `x86_64` | `linux/amd64` |
 | `aarch64` | `linux/arm64` |
 
-Am einfachsten ist eine VM mit derselben Architektur wie OL8. Die folgenden
-Anweisungen setzen das voraus. Üblicherweise laufen sowohl die Ubuntu-VM als
-auch der OL8-Host auf x86; das trotzdem prüfen, statt es anzunehmen.
+Am eifachschte isch e VM mit dr glyche Architektur wie OL8. D folgende
+Aaleitige setze das vorus. Üblecherwys loufe sowohl d Ubuntu-VM wie
+ou dr OL8-Host uf x86; das trotzdem prüefe, statt es aznäh.
 
-Bei unterschiedlichen Architekturen keine Standard-Images der VM exportieren.
-Einen Builder mit passender Architektur verwenden oder Cross-Platform-Builds
-und Emulation bewusst einrichten. Da das
-Empfänger-Dockerfile Maven innerhalb des Build-Images ausführt, stellt `--platform`
-allein keine Emulation bereit. Jedes fest versionierte Upstream-Image muss
-ebenfalls für die Zielarchitektur verfügbar sein. Das vor dem Packen klären; `exec format error` auf dem Offline-Host zu entdecken, kommt reichlich spät.
+Bi unterschiedliche Architekture ke Standard-Images vo dr VM exportiere.
+E Builder mit passender Architektur bruuche oder Cross-Platform-Builds
+und Emulation bewusst iirichte. Wüu s
+Empfänger-Dockerfile Maven innerhalb vom Build-Image usfüehrt, stellt `--platform`
+allei ke Emulation bereit. Jedes fescht versionierte Upstream-Image muess
+ou für d Zielarchitektur verfüegbar si. Das vor em Packe kläre; `exec format error` uf em Offline-Host z entdecke, chunnt rächt spät.
 
-## 4. Auf der verbundenen Ubuntu-VM vorbereiten und bauen
+## 4. Uf dr verbundene Ubuntu-VM vorbereite und baue
 
-Das Projekt auf die **Ubuntu-VM** kopieren. Dabei `.env` und das
-Ausführungsrecht von `generator/generate.sh` erhalten. Als Ziel eignet sich
-beispielsweise `~/projects/debezium`. Die übliche Methode zur Quellübertragung verwenden; ein
-gehostetes Repository ist für dieses Verfahren nicht erforderlich.
+S Projekt uf d **Ubuntu-VM** kopiere. Derbi `.env` und s
+Usfüehrigsrächt vo `generator/generate.sh` erhalte. Als Ziel eignet sech
+zum Bispil `~/projects/debezium`. D üblechi Methode für d Quellübertragig bruuche; es
+hostets Repository isch für das Verfahre nid nötig.
 
 ```bash
 cd ~/projects/debezium
@@ -162,27 +162,27 @@ docker image inspect \
   --format '{{.RepoTags}} {{.Os}}/{{.Architecture}} {{.Id}}'
 ```
 
-Alle drei gemeldeten Architekturen mit dem Ziel abgleichen. Beim Build des
-Empfängers werden dessen Unit-Tests mit Maven ausgeführt. Der Schritt
-`dependency:go-offline` erfolgt nach bestem Bemühen. Allein das Kopieren dieses Caches
-würde also keinen Offline-Build ermöglichen. Durch die Übertragung des
-**fertigen Images** entfällt das gesamte Maven-Problem.
+Alli drü gmäldete Architekture mit em Ziel abglyche. Bim Build vom
+Empfänger wärde sini Unit-Tests mit Maven usgfüehrt. Dr Schritt
+`dependency:go-offline` wird nach beschtem Bemüehige usgfüehrt. Nume dä Cache z kopiere
+würd auso ke Offline-Build ermögliche. Mit dr Übertragig vom
+**fertige Image** entfaut s ganze Maven-Problem.
 
-Die obigen Befehle starten oder setzen keine Datenbank zurück. Für eine Probe
-des gesamten Ablaufs die Neuinstallationssequenz im Operator Guide auf einem
-isolierten Docker-Daemon oder in einer isolierten VM durchlaufen. Dieses Projekt verwendet feste Container- und Volume-Namen. Zwei Kopien
-auf demselben Daemon sind nicht allein dadurch isoliert, dass sie in
-verschiedenen Verzeichnissen liegen oder unterschiedliche Compose-Projektnamen
-verwenden (`-p`).
+D Befähl obe starte oder setze ke Datebank zrügg. Für e Prob
+vom ganze Ablauf d Neuinstallationssequenz im Operator Guide uf eme
+isolierte Docker-Daemon oder i ere isolierte VM durefüehre. Das Projekt brucht fescht Container- und Volume-Näme. Zwei Kopie
+uf em glyche Daemon si nid scho drum isoliert, wüu si i
+verschiedene Verzeichnis lige oder unterschiedlechi Compose-Projektnäme
+bruuche (`-p`).
 
-Falls sich die Image-Tags in `.env` ändern, auch die drei
-expliziten Image-Referenzen in den Befehlen zum Packen und Prüfen aktualisieren. Das
-Verfahren hält bewusst die für diesen Versuchsaufbau verwendeten,
-festgelegten Versionen fest.
+We sech d Image-Tags i `.env` ändere, ou d drü
+explizite Image-Referänze i de Befähl fürs Packe und Prüefe aktualisiere. Das
+Verfahre hautet bewusst d für dä Versuechsufbau bruuchte,
+feschtgleite Versione fescht.
 
-## 5. Ein vollständiges Transfer-Bundle erstellen
+## 5. Es vollständigs Transfer-Bundle erstelle
 
-Weiterhin auf der **Ubuntu-VM**, im Projekt-Stammverzeichnis:
+Witerhin uf dr **Ubuntu-VM**, im Projekt-Stammverzeichnis:
 
 ```bash
 set -euo pipefail
@@ -216,7 +216,7 @@ tar --exclude='receiver/target' \
     --exclude='__pycache__' \
     --exclude='*.pyc' \
     -czf "$DBZ_BUNDLE/project.tar.gz" \
-    .env compose.yaml Makefile README.md README-de.md README-en.md \
+    .env compose.yaml Makefile README.md README-de.md README-en.md README-sg.md \
     postgres debezium receiver generator verify docs deploy
 
 (
@@ -227,54 +227,54 @@ tar --exclude='receiver/target' \
 )
 ```
 
-`set -o pipefail` ist wichtig: Ein fehlgeschlagener Image-Export darf nicht durch einen
-erfolgreichen gzip-Schritt wie ein gültiges Bundle aussehen. Diese
-Shell geöffnet lassen oder den ausgegebenen Pfad notieren; `DBZ_BUNDLE` ist nur eine
+`set -o pipefail` isch wichtig: E fehlgschlagene Image-Export darf nid dür e
+erfolgriche gzip-Schritt wie es gültigs Bundle usgseh. Die
+Shell offe la oder dr usgäh Pfad notiere; `DBZ_BUNDLE` isch nume e
 Shell-Variable.
 
-Das Projektarchiv enthält die aktuellen Dateien einschliesslich nicht
-committeter Dokumentation. Es wird nicht stillschweigend ein älteres
-`git archive HEAD` verwendet. Die aufgezeichnete Git-Revision allein definiert das Archiv
-daher nicht; die Prüfsumme legt den tatsächlich übertragenen Inhalt fest.
-Ausgeschlossen werden bewusst `.git`, Host-Ereignislogs, Ausführungsberichte,
-lokale Datenbank-Volumes und Maven-Ausgaben des Hosts.
+S Projektarchiv enthält d aktuelle Dateie samt nid
+committeter Dokumentation. Es wird nid stillschwygend es älters
+`git archive HEAD` bruucht. D ufzeichneti Git-Revision allei definiert s Archiv
+drum nid; d Prüefsumm legt dr tatsächlech übertragene Inhalt fescht.
+Bewusst usgschlosse wärde `.git`, Host-Ereignislogs, Usfüehrigsbricht,
+lokali Datebank-Volumes und Maven-Usgabe vom Host.
 
-Das aktuelle `.env` enthält Demo-Zugangsdaten (`dbz`/`dbz`);
-`debezium/application.properties` enthält dieselben Zugangsdaten. Beide Dateien vor der Übertragung
-prüfen. Falls sie später echte Zugangsdaten enthalten, das Bundle entsprechend
-behandeln: nicht per E-Mail versenden oder in einem gewöhnlichen freigegebenen
-Verzeichnis ablegen.
+S aktuelle `.env` enthält Demo-Zuegangsdate (`dbz`/`dbz`);
+`debezium/application.properties` enthält die glyche Zuegangsdate. Beidi Dateie vor dr Übertragig
+prüefe. We si spöter echti Zuegangsdate enthalte, s Bundle entsprechend
+behandle: nid per E-Mail versände oder i eme gewöhnleche freigegebene
+Verzeichnis ablege.
 
-SHA-256-Prüfsummen erkennen Beschädigungen, aber keinen böswilligen Austausch
-von Archiv und Prüfsumme zugleich. Den freigegebenen Weg über
-Wechselmedien oder Dateiübertragung verwenden.
+SHA-256-Prüefsummen erkenne Beschädigige, aber ke böswillige Ustusch
+vo Archiv und Prüefsumm zäme. Dr freigegebene Wäg über
+Wechselmedie oder Dateiübertragig bruuche.
 
-## 6. Das Verzeichnis übertragen
+## 6. S Verzeichnis übertrage
 
-**Alle Dateien aus dem ausgegebenen Bundle-Verzeichnis** nach OL8 übertragen,
-zum Beispiel nach:
+**Alli Dateie us em usgäh Bundle-Verzeichnis** uf OL8 übertrage,
+zum Bispil nach:
 
 ```text
 /home/jon/dbzproof-transfer/
 ```
 
-Ein eingehängtes USB-Laufwerk, einen kontrollierten Dateiablageort
-oder eine interne Netzwerkkopie verwenden. „Kein Internet“ bedeutet nicht zwingend
-„kein internes SSH“. Falls internes SSH verfügbar ist, geht das auf der
-Ubuntu-VM beispielsweise so:
+Es iighänktes USB-Loufwärk, e kontrollierte Dateiablageort
+oder e interni Netzwerkkopie bruuche. «Kes Internet» heisst nid zwingend
+«kes internes SSH». We internes SSH verfüegbar isch, geit das uf dr
+Ubuntu-VM zum Bispil so:
 
 ```bash
 scp -r "$DBZ_BUNDLE" jon@ol8-host:/home/jon/dbzproof-transfer-bundle
 ```
 
-Host und Konto ersetzen. Auf OL8 das tatsächliche Zielverzeichnis mit
-`SHA256SUMS` verwenden, nicht dessen übergeordnetes Verzeichnis.
-Keine der beiden Übertragungsmethoden muss von OL8 aus eine öffentliche
-Registry kontaktieren.
+Host und Konto ersetze. Uf OL8 s tatsächleche Zielverzeichnis mit
+`SHA256SUMS` bruuche, nid s übergeordnete Verzeichnis.
+Keini vo de beide Übertragigsmethode muess vo OL8 us e öffentlechi
+Registry kontaktiere.
 
-## 7. Auf dem Offline-OL8 laden und konfigurieren
+## 7. Uf em Offline-OL8 lade und konfiguriere
 
-Auf **Oracle Linux** zuerst die Übertragung prüfen:
+Uf **Oracle Linux** zersch d Übertragig prüefe:
 
 ```bash
 set -euo pipefail
@@ -285,10 +285,10 @@ tar -tzf project.tar.gz
 cat image-manifest.txt
 ```
 
-Jede Prüfsumme muss mit `OK` bestätigt werden. Bei Verwendung des SSH-Beispiels den
-Transferpfad anpassen. Vor dem Extrahieren die Archivliste prüfen.
+Jedi Prüefsumm muess mit `OK` bestätigt wärde. We du s SSH-Bispil bruuchsch, dr
+Transferpfad apasse. Vor em Extrahiere d Archivlischte prüefe.
 
-Die Images laden und die Anwendung in ein **neues** Verzeichnis extrahieren:
+D Images lade und d Awändig i es **nöis** Verzeichnis extrahiere:
 
 ```bash
 docker image load --input images.tar.gz
@@ -310,19 +310,19 @@ chmod 0600 .env
 unset COMPOSE_FILE
 ```
 
-Die Dateien mit dem Konto extrahieren, das den Versuchsaufbau betreiben wird. `logs/` und `runs/` müssen für die soeben erfasste UID/GID
-beschreibbar sein. Die Installation nicht als Root einrichten und dann mittendrin das Konto
-wechseln. Benannte Volumes verwaltet Docker; den Eigentümer von Docker-internen
-Volume-Verzeichnissen nicht mit `chown` ändern.
+D Dateie mit em Konto extrahiere, wo dr Versuechsufbau wird betrybe. `logs/` und `runs/` müesse für d grad erfassti UID/GID
+beschrybbar si. D Installation nid als Root iirichte und de mittendrin s Konto
+wächsle. Benannti Volumes verwaltet Docker; dr Bsitzer vo Docker-interne
+Volume-Verzeichnis nid mit `chown` ändere.
 
-Der mitgelieferte [Offline-Override](../deploy/compose.offline.yaml) setzt
-`pull_policy: never` für **alle vier Dienste**, einschliesslich des Generators. Wird er als
-`compose.override.yaml` kopiert, erkennen ihn normale Compose-Befehle und der Verifier
-automatisch. Die Mounts, benannten Volumes, Netzwerke und Healthchecks der
-Basisdatei bleiben erhalten. Die Build-Definition des Empfängers wird dadurch
-nicht entfernt; der Start muss deshalb zusätzlich `--no-build` verwenden.
+Dr mitgliferte [Offline-Override](../deploy/compose.offline.yaml) setzt
+`pull_policy: never` für **alli vier Dienschte**, inklusive em Generator. Wird er als
+`compose.override.yaml` kopiert, erkenne ihn normali Compose-Befähl und dr Verifier
+automatisch. D Mounts, benannti Volumes, Netzwerke und Healthchecks vo dr
+Basisdatei blibe erhalte. D Build-Definition vom Empfänger wird derdür
+nid entfärnt; bim Start muess drum zusätzlech `--no-build` bruucht wärde.
 
-Die IDs der geladenen Images mit `image-manifest.txt` vergleichen:
+D IDs vo de gladenen Images mit `image-manifest.txt` verglyche:
 
 ```bash
 docker image inspect \
@@ -336,17 +336,17 @@ docker compose --profile tools config --images
 docker compose --profile tools config
 ```
 
-Der letzte Befehl gibt aufgelöste Zugangsdaten aus. Die Ausgabe lokal prüfen
-und nicht in ein uneingeschränkt zugängliches Ticket kopieren. Bei jedem Dienst prüfen, dass
-`pull_policy: never` gesetzt ist, die Host-Ports an Loopback gebunden sind und
-`logs`/`runs` auf diese Installation verweisen. Die Einrichtung entfernt
-`COMPOSE_FILE`, damit die automatische Erkennung des Overrides nicht umgangen
-werden kann. In einer neuen Shell wiederholen, falls diese Variable normalerweise gesetzt
-ist. Kein fremdes Override in diesem Verzeichnis liegen lassen.
+Dr letscht Befähl git ufglösti Zuegangsdate us. D Usgab lokal prüefe
+und nid i es uneigschränkt zuegänglechs Ticket kopiere. Bi jedem Dienscht prüefe, dass
+`pull_policy: never` gsetzt isch, d Host-Ports a Loopback bunde si und
+`logs`/`runs` uf die Installation verwyse. D Iirichtig entfärnt
+`COMPOSE_FILE`, damit d automatischi Erkennig vom Override nid umgange
+wärde cha. I ere nöie Shell widerhole, we die Variable normalerwys gsetzt
+isch. Kes frömds Override i däm Verzeichnis lige la.
 
-## 8. Ohne Build oder Pull starten
+## 8. Ohni Build oder Pull starte
 
-Auf **Oracle Linux** im Stammverzeichnis der Installation ausführen:
+Uf **Oracle Linux** im Stammverzeichnis vo dr Installation usfüehre:
 
 ```bash
 docker compose up -d --wait --no-build --pull never postgres receiver debezium
@@ -355,91 +355,91 @@ curl -fsS http://127.0.0.1:8080/health
 curl -fsS http://127.0.0.1:8081/q/health
 ```
 
-**`make up` nicht auf dem Offline-Host verwenden.** Dessen Ziel
-`up` hängt von `build` ab. Dieses führt `docker compose build receiver` aus und
-benötigt möglicherweise Upstream-Images und Maven-Downloads. Für `make build`
-gilt dasselbe. Den expliziten Befehl oben verwenden, wenn
-Container erstellt oder neu erstellt werden müssen.
-[`docker compose up`](https://docs.docker.com/reference/cli/docker/compose/up/) beschreibt
-`--no-build`, die Pull-Richtlinie und das Warten auf Healthchecks.
+**`make up` nid uf em Offline-Host bruuche.** S Ziel
+`up` hängt vo `build` ab. Das füehrt `docker compose build receiver` us und
+brucht möglicherwys Upstream-Images und Maven-Downloads. Für `make build`
+gilt ds Glyche. Dr explizit Befähl obe bruuche, we
+Container erstellt oder nöi erstellt wärde müesse.
+[`docker compose up`](https://docs.docker.com/reference/cli/docker/compose/up/) beschrybt
+`--no-build`, d Pull-Richtlinie und s Warte uf Healthchecks.
 
-Beim ersten Start initialisiert PostgreSQL das benannte Volume, erstellt und
-befüllt die Schemas und richtet die Publication ein. Debezium wartet, bis
-PostgreSQL und der Empfänger gesund sind, und erstellt danach Snapshots der
-drei erfassten Tabellen. Es sind 15 `r`-Umschläge in `logs/events.jsonl` zu erwarten
-(3 Kunden, 4 Bestellungen, 8 Positionen).
+Bim erschte Start initialisiert PostgreSQL s benannte Volume, erstellt und
+befüllt d Schemas und richtet d Publication ii. Debezium wartet, bis
+PostgreSQL und dr Empfänger gsund si, und erstellt dernach Snapshots vo de
+drü erfasste Tabelle. Es si 15 `r`-Umschläg i `logs/events.jsonl` z erwarte
+(3 Chunde, 4 Bstellige, 8 Positione).
 
-Dies ist ein lokaler PostgreSQL-Versuchsaufbau, der **auf Oracle
-Linux gehostet wird**. Es handelt sich nicht um eine Oracle-Database-
-Connector-Bereitstellung. Oracle-Client-Bibliotheken kommen nicht zum Einsatz.
+Das isch e lokale PostgreSQL-Versuechsufbau, wo **uf Oracle
+Linux hostet wird**. Es isch ke Oracle-Database-
+Connector-Bereitstellig. Oracle-Client-Bibliotheke chöme nid zum Iisatz.
 
-## 9. Die Installation verifizieren
+## 9. D Installation verifiziere
 
-### Empfohlen: Python 3.12 auf dem Host
+### Empfohle: Python 3.12 uf em Host
 
-Der Versuchsaufbau wurde mit Python 3.12 verifiziert und verwendet
-ausschliesslich die Standardbibliothek. Ein `pip install`-Schritt ist nicht nötig.
-Den Interpreter ausdrücklich prüfen:
+Dr Versuechsufbau isch mit Python 3.12 verifiziert worde und brucht
+ausschliesslech d Standardbibliothek. E `pip install`-Schritt isch nid nötig.
+Dr Interpreter ausdrücklich prüefe:
 
 ```bash
 python3.12 --version
 python3.12 verify/verify.py all
 ```
 
-Auf dieser frischen Installation zuerst den vollständigen Verifier ausführen,
-erst danach die Datenbank manuell ändern oder Beispiele generieren. Er
-schreibt Nachweise nach `runs/`, erzeugt Szenario-Zeilen, stoppt und startet
-den Empfänger absichtlich neu und startet den gesamten Stack neu. Dies ist
-eine Abnahmeprüfung und kein passiver Monitoring-Befehl.
+Uf dere frische Installation zersch dr vollständig Verifier usfüehre,
+erscht dernach d Datebank manuell ändere oder Bispil generiere. Er
+schrybt Nachwyse nach `runs/`, erzeugt Szenario-Zyle, stoppt und startet
+dr Empfänger absichtlech nöi und startet dr ganz Stack nöi. Das isch
+e Abnahmprüefig und ke passive Monitoring-Befähl.
 
-Für eine kurze Health-Prüfung genügt:
+Für e churzi Health-Prüefig längt:
 
 ```bash
 python3.12 verify/verify.py health
 ```
 
-`make verify` ruft `python3` auf. Nur verwenden, wenn dieses Programm
-der geeignete Interpreter ist. Weder das System-Python von OL8 noch
-`/usr/libexec/platform-python` ersetzen. Einen versionierten Python-Befehl verwenden. Oracle stellt
-Python 3.12 auf OL8.10 und Python 3.11 ab OL8.8 bereit. Details stehen in
-der [Oracle-Dokumentation zur Python-Installation](https://docs.oracle.com/en/operating-systems/oracle-linux/8/python/python-InstallingPython.html).
-Die für dieses Projekt dokumentierte und zuvor getestete Wahl ist Version
+`make verify` rüeft `python3` uf. Nume bruuche, we das Programm
+dr geeigneti Interpreter isch. Weder s System-Python vo OL8 no
+`/usr/libexec/platform-python` ersetze. E versionierte Python-Befähl bruuche. Oracle stellt
+Python 3.12 uf OL8.10 und Python 3.11 ab OL8.8 bereit. Details stöh i
+dr [Oracle-Dokumentation zur Python-Installation](https://docs.oracle.com/en/operating-systems/oracle-linux/8/python/python-InstallingPython.html).
+D für das Projekt dokumentierti und früecher testeti Wahl isch Version
 3.12.
 
-Falls Python 3.12 fehlt, sollte die Systemadministration es über das
-OL8-Paket-Repository des Standorts oder einen freigegebenen Offline-RPM-Prozess
-bereitstellen. RPMs in einer verbundenen OL8-Umgebung vorbereiten, die
-hinsichtlich Zielarchitektur, Minor-Release und Repository-Konfiguration
-übereinstimmt. Dafür **keine Ubuntu-deb-Pakete** herunterladen.
+We Python 3.12 fählt, sött d Systemadministration es über s
+OL8-Paket-Repository vom Standort oder e freigegebene Offline-RPM-Prozess
+bereitstelle. RPMs i ere verbundene OL8-Umgäbig vorbereite, wo
+bi Zielarchitektur, Minor-Release und Repository-Konfiguration
+übereinstimmt. Derfür **ke Ubuntu-deb-Pakete** abelade.
 
-Auf einem OL8.10-Staging-System mit den passenden Repositories und bereits
-konfiguriertem DNF-Download-Plugin kann die Administration die Pakete wie
-folgt zusammenstellen:
+Uf eme OL8.10-Staging-System mit de passende Repositories und bereits
+konfiguriertem DNF-Download-Plugin cha d Administration d Pakete wie
+folgt zämestelle:
 
 ```bash
 mkdir -p python-rpms
 dnf download --resolve --alldeps --destdir ./python-rpms python3.12
 ```
 
-Dieses Verzeichnis übertragen und die Pakete auf dem Ziel bei deaktivierten
-Repositories installieren:
+Das Verzeichnis übertrage und d Pakete uf em Ziel mit deaktivierte
+Repositories installiere:
 
 ```bash
 sudo dnf --disablerepo='*' install ./python-rpms/*.rpm
 ```
 
-Dies sind bedingte Hinweise und keine universelle RPM-Liste. Die Abhängigkeiten
-für das tatsächliche Ziel auf Vollständigkeit prüfen, Herstellersignaturen
-beibehalten und fehlende freigegebene Signaturschlüssel hinzufügen.
-`--nogpgcheck` nicht hinzufügen. Bei einem
-älteren OL8-Minor-Release kann zuerst ein freigegebenes Betriebssystem-Update
-erforderlich sein.
+Das si bedingti Hiwyse und ke universelli RPM-Lischte. D Abhängigkeiten
+für s tatsächleche Ziel uf Vollständigkeit prüefe, d Härstellersignature
+bibehalte und fählendi freigegebene Signaturschlüssle hinzuefüege.
+`--nogpgcheck` nid hinzuefüege. Bi eme
+ältere OL8-Minor-Release cha zersch es freigegebes Betriebssystem-Update
+nötig si.
 
-### Ohne Python: manueller Smoke-Test
+### Ohni Python: manuelle Smoke-Test
 
-Der Stack kann ohne Python ausgeführt werden; nur die automatische
-Verifizierung benötigt Python. Nach der Health-Prüfung den
-Generator mit einer neuen Kennung ausführen:
+Dr Stack cha ohni Python usgfüehrt wärde; nume d automatischi
+Verifizierig brucht Python. Nach dr Health-Prüefig dr
+Generator mit ere nöie Kennig usfüehre:
 
 ```bash
 RUN_ID=ol8-smoke-001 docker compose --profile tools run --rm --pull never generator
@@ -450,35 +450,35 @@ docker compose exec -T postgres psql -U dbz -d appdb \
   -c "select run_id, status from bulk.batch_jobs order by id;"
 ```
 
-Es sollten sieben erwartete erfasste Ereignisse erscheinen. Der Bulk-Marker
-ist in der Datenbank vorhanden, ohne dass entsprechende `bulk`-Ereignisse
-ausgegeben werden. Dieser Smoke-Test ersetzt nicht die automatisierten
-Abnahmeprüfungen für Ausfälle und Neustarts. Jedes Mal eine
-neue Ausführungskennung verwenden; Kennungen setzen einen Lauf weder zurück noch starten
-sie ihn erneut.
+Es sötte sibe erwarteti erfassti Ereignis erschyne. Dr Bulk-Marker
+isch i dr Datebank vorhande, ohni dass entsprechendi `bulk`-Ereignis
+usgäh wärde. Dä Smoke-Test ersetzt nid d automatisierte
+Abnahmprüefige für Usfäll und Neustarts. Jedes Mau e
+nöii Usfüehrigskennig bruuche; Kennige setze e Lauf weder zrügg no starte
+si ihn nomau.
 
-## 10. Falls das Compose-Plugin fehlt
+## 10. We s Compose-Plugin fählt
 
-Docker Engine und Compose sind getrennte Komponenten. Eine vorhandene
-Docker-CE-Installation belegt nicht, dass das Plugin installiert ist. Falls
-`docker compose` bereits mit den erforderlichen Optionen funktioniert, diesen
-Abschnitt überspringen.
+Docker Engine und Compose si separati Komponente. E vorhandeni
+Docker-CE-Installation belegt nid, dass s Plugin installiert isch. We
+`docker compose` bereits mit de nötige Optione funktioniert, dä
+Abschnitt überspringe.
 
-Das am Standort freigegebene RPM `docker-compose-plugin` mit allen
-Abhängigkeiten bevorzugen. Alternativ kann die Administration eine
-offizielle Compose-Release-Binärdatei für die **Zielarchitektur** übertragen
-und manuell installieren. Docker beschreibt Speicherorte und manuelle
-Installation in der [Installationsanleitung für das Compose-Plugin](https://docs.docker.com/compose/install/linux/).
+S am Standort freigegebene RPM `docker-compose-plugin` mit aune
+Abhängigkeiten bevorzuge. Alternativ cha d Administration e
+offizielli Compose-Release-Binärdatei für d **Zielarchitektur** übertrage
+und manuell installiere. Docker beschrybt Speicherort und manuelli
+Installation i dr [Installationsaaleitig fürs Compose-Plugin](https://docs.docker.com/compose/install/linux/).
 
-Auf dem verbundenen Rechner ein geprüftes Release und dessen
-veröffentlichte Prüfsummen aus den [Docker-Compose-Releases](https://github.com/docker/compose/releases)
-herunterladen. Für x86-OL8 `docker-compose-linux-x86_64` und für ARM-OL8
-`docker-compose-linux-aarch64` wählen. Die Datei erst nach Prüfung der
-Herstellerprüfsumme in das Transfer-Manifest aufnehmen. Kein undokumentiertes
-„latest“ wählen.
+Uf em verbundene Rächner es prüefts Release und sini
+veröffentlechte Prüefsummen us de [Docker-Compose-Releases](https://github.com/docker/compose/releases)
+abelade. Für x86-OL8 `docker-compose-linux-x86_64` und für ARM-OL8
+`docker-compose-linux-aarch64` wähle. D Datei erscht nach em Prüefe vo dr
+Härstellerprüefsumm is Transfer-Manifest ufnäh. Kes undokumentierts
+«latest» wähle.
 
-Für eine übertragene x86-Binärdatei im aktuellen Verzeichnis kann die
-Administration Folgendes ausführen:
+Für e übertragene x86-Binärdatei im aktuelle Verzeichnis cha d
+Administration ds Folgende usfüehre:
 
 ```bash
 sudo install -d -m 0755 /usr/local/lib/docker/cli-plugins
@@ -488,58 +488,58 @@ docker compose version
 docker compose up --help
 ```
 
-Für ARM den ARM-Dateinamen verwenden. Vor dem Einsatz die Kompatibilität
-mit dem Docker-Daemon auf dem tatsächlichen OL8-Host prüfen. Die manuelle Installation der Binärdatei bietet keine
-automatischen Updates; ihre Version im Bereitstellungsprotokoll festhalten.
+Für ARM dr ARM-Dateiname bruuche. Vor em Iisatz d Kompatibilität
+mit em Docker-Daemon uf em tatsächleche OL8-Host prüefe. D manuelli Installation vo dr Binärdatei bietet ke
+automatische Updates; ihri Version im Bereitstelligsprotokoll feschthalte.
 
-## 11. Regelmässige Arbeiten auf OL8
+## 11. Regelmässigi Arbeite uf OL8
 
-| Aufgabe | Befehl im Installationsverzeichnis |
+| Ufgab | Befähl im Installationsverzeichnis |
 | --- | --- |
-| Erstellen/neu erstellen und auf Healthchecks warten | `docker compose up -d --wait --no-build --pull never postgres receiver debezium` |
-| Status anzeigen | `docker compose ps` |
-| Diagnosemeldungen verfolgen | `docker compose logs -f --tail=100` |
-| Ereignisse verfolgen | `tail -f logs/events.jsonl` |
-| Anhalten und Zustand erhalten | `docker compose stop` |
-| Vorhandene, angehaltene Container starten | `docker compose start` |
-| Vorhandene Container neu starten | `docker compose restart` |
-| Erschöpften Debezium-Engine-Prozess wiederherstellen | `docker compose restart debezium` |
-| Weiteres Szenario erzeugen | `RUN_ID=ol8-run-002 docker compose --profile tools run --rm --pull never generator` |
+| Erstelle/nöi erstelle und uf Healthchecks warte | `docker compose up -d --wait --no-build --pull never postgres receiver debezium` |
+| Status azeige | `docker compose ps` |
+| Diagnosemäldige verfolge | `docker compose logs -f --tail=100` |
+| Ereignis verfolge | `tail -f logs/events.jsonl` |
+| Ahalte und dr Zuestand erhalte | `docker compose stop` |
+| Vorhandeni, aghalteni Container starte | `docker compose start` |
+| Vorhandeni Container nöi starte | `docker compose restart` |
+| Erschöpfte Debezium-Engine-Prozess wiederhärstelle | `docker compose restart debezium` |
+| Es witers Szenario erzeuge | `RUN_ID=ol8-run-002 docker compose --profile tools run --rm --pull never generator` |
 
-`start` setzt vorhandene Container voraus. Nach `down` den
-Befehl zum Erstellen/Neuerstellen verwenden. `restart` übernimmt geänderte
-Compose-Umgebungseinstellungen nicht. Nach Änderungen dieser
-Einstellungen den Befehl zum Erstellen/Neuerstellen verwenden.
+`start` setzt vorhandeni Container vorus. Nach `down` dr
+Befähl fürs Erstelle/Nöierstelle bruuche. `restart` übernimmt gänderti
+Compose-Umgäbigsistellige nid. Nach Änderige vo dene
+Iistellige dr Befähl fürs Erstelle/Nöierstelle bruuche.
 
-Die erschöpfte Engine kann ihren Container **laufend, aber nicht gesund**
-zurücklassen. Auf einem Offline-Host verhält sich das wie auf dem Laptop:
-Zuerst den Empfänger wiederherstellen, danach Debezium ausdrücklich neu starten. Eine Restart-Policy, die auf den Container-Exit
-reagiert, behebt diesen Fehlerfall nicht. Diese Bereitstellung richtet keinen
-Autostart nach einem Reboot ein. Nach Wartungsarbeiten am Host den Zustand prüfen
-und die benötigten Dienste bewusst starten.
+D erschöpfti Engine cha ihre Container **loufend, aber nid gsund**
+zrüggla. Uf eme Offline-Host verhält sech das wie uf em Laptop:
+Zersch dr Empfänger wiederhärstelle, dernach Debezium ausdrücklich nöi starte. E Restart-Policy, wo uf dr Container-Exit
+reagiert, behebt dä Fählerfall nid. Die Bereitstellig richtet ke
+Autostart nach eme Reboot ii. Nach Wartigsarbeite am Host dr Zuestand prüefe
+und d nötige Dienschte bewusst starte.
 
-Die benannten Volumes `dbzproof_pg_data` und `dbzproof_debezium_data` zusammen mit dem
-Installationsprotokoll aufbewahren. `docker compose down` behält sie bei;
-`docker compose down -v` und `make reset` löschen sie. Reset nicht verwenden, um einen
-vorübergehenden Zustellausfall zu beheben.
+D benannte Volumes `dbzproof_pg_data` und `dbzproof_debezium_data` zäme mit em
+Installationsprotokoll ufbehalte. `docker compose down` bhautet si;
+`docker compose down -v` und `make reset` lösche si. Reset nid bruuche, um e
+vorübergehende Zuestellusfall z behebe.
 
-## 12. Offline-Fehlerbehebung
+## 12. Offline-Fähler behebe
 
-| Symptom | Wahrscheinliche Ursache und nächster Schritt |
+| Symptom | Wahrschynlechi Ursach und nächschte Schritt |
 | --- | --- |
-| Compose versucht Images abzurufen | Falsches Arbeitsverzeichnis, automatischer Override fehlt, `COMPOSE_FILE` umgeht ihn oder ein expliziter Befehl fordert einen Pull an. `docker compose --profile tools config` prüfen. |
-| Der Empfänger-Build versucht Downloads | Es wurde `make up`, `make build` oder `--build` verwendet. Den expliziten Startbefehl mit `--no-build --pull never` verwenden. |
-| Image bei deaktivierten Pulls nicht gefunden | Tag stimmt nicht oder Image fehlt im übertragenen Archiv. `.env`, `config --images` und `docker image ls` vergleichen; das Bundle auf der verbundenen VM korrigieren. |
-| `exec format error` | Architektur stimmt nicht überein. Auf einer passenden Architektur neu bauen und exportieren; ein geladenes Image wird dadurch nicht konvertiert. |
-| Unbekannte Option oder `pull_policy` wird abgelehnt | Compose ist zu alt oder es wird das falsche Programm verwendet. Über den freigegebenen Offline-Weg ein kompatibles Plugin bereitstellen. |
-| Keine Schreibberechtigung für Logs/Runs | Falsche Host-UID/GID, Dateien wurden von einem anderen Konto extrahiert oder das Dateisystem ist schreibgeschützt. `id`, `.env` und `ls -ld logs runs` prüfen. SELinux ist in dieser Umgebung deaktiviert. |
-| Port bereits belegt | Ein vorhandener Dienst verwendet Port 5432, 8080 oder 8081. `ss -ltn` prüfen; die URLs des Verifiers sind fest codiert und müssen vor einer Portänderung berücksichtigt werden. |
-| PostgreSQL startet mit unerwartet alten Daten | Das feste benannte Volume existiert bereits. Anhalten und den Zustand untersuchen; ein neues Quellverzeichnis erzeugt keinen neuen Volume-Namen. |
-| Snapshot-Verifier schlägt fehl | Kein frischer Seed-/Snapshot-Verlauf, Logs wurden entfernt, während Offsets erhalten blieben, oder der Start ist fehlgeschlagen. Vor einem destruktiven Reset den Operator Guide lesen. |
-| Debezium läuft, ist aber nicht gesund | Den Zustand des Empfängers und die Debezium-Logs prüfen. Nach ausgeschöpften Wiederholungsversuchen muss Debezium ausdrücklich neu gestartet werden, sobald der Empfänger wiederhergestellt ist. |
-| `/var/lib/docker` ist voll | Das vom PostgreSQL-Slot zurückgehaltene WAL sowie den Speicherverbrauch von Docker und Logs prüfen. Die Erfassung wiederherstellen; WAL-Dateien nicht manuell löschen. |
+| Compose versuecht Images abzrüefe | Fauschs Arbeitsverzeichnis, dr automatisch Override fählt, `COMPOSE_FILE` umgeit ihn oder e explizite Befähl fordert e Pull a. `docker compose --profile tools config` prüefe. |
+| Dr Empfänger-Build versuecht Downloads | Es isch `make up`, `make build` oder `--build` bruucht worde. Dr explizit Startbefähl mit `--no-build --pull never` bruuche. |
+| Image bi deaktivierte Pulls nid gfunde | S Tag stimmt nid oder s Image fählt im übertragene Archiv. `.env`, `config --images` und `docker image ls` verglyche; s Bundle uf dr verbundene VM korrigiere. |
+| `exec format error` | D Architektur stimmt nid überein. Uf ere passende Architektur nöi baue und exportiere; es gladenes Image wird derdür nid konvertiert. |
+| Unbekannti Option oder `pull_policy` wird abglehnt | Compose isch z alt oder es wird s fausche Programm bruucht. Über dr freigegebene Offline-Wäg es kompatibles Plugin bereitstelle. |
+| Ke Schrybberechtigung für Logs/Runs | Fauschi Host-UID/GID, d Dateie si vo mene andere Konto extrahiert worde oder s Dateisystem isch schrybgschützt. `id`, `.env` und `ls -ld logs runs` prüefe. SELinux isch i dere Umgäbig deaktiviert. |
+| Port bereits belegt | E vorhandene Dienscht brucht Port 5432, 8080 oder 8081. `ss -ltn` prüefe; d URLs vom Verifier si fescht codiert und müesse vor ere Portänderig berücksichtigt wärde. |
+| PostgreSQL startet mit unerwartet alte Date | S fescht benannte Volume existiert bereits. Ahalte und dr Zuestand untersueche; es nöis Quellverzeichnis erzeugt ke nöie Volume-Name. |
+| Dr Snapshot-Verifier schlaht fähl | Ke frische Seed-/Snapshot-Verlauf, Logs si entfärnt worde, während Offsets erhalte blibe si, oder dr Start isch fählgschlage. Vor eme destruktive Reset dr Operator Guide läse. |
+| Debezium louft, isch aber nid gsund | Dr Zuestand vom Empfänger und d Debezium-Logs prüefe. Nach usgschöpfte Wiederholigsversuech muess Debezium ausdrücklich nöi gstartet wärde, sobald dr Empfänger wiederhärgstellt isch. |
+| `/var/lib/docker` isch vou | S WAL, wo dr PostgreSQL-Slot zrügghebt, sowie dr Speicherverbruch vo Docker und Logs prüefe. D Erfassig wiederhärstelle; WAL-Dateie nid manuell lösche. |
 
-Nützliche Diagnosen, für die kein Internetzugang erforderlich ist:
+Nützlechi Diagnose, wo ke Internetzuegang bruuche:
 
 ```bash
 docker compose ps -a
@@ -552,29 +552,29 @@ ls -ld logs runs
 ss -ltn
 ```
 
-`docker system prune --volumes` nicht als schnelle Fehlerbehebung ausführen. Dadurch können
-Daten dieses Versuchsaufbaus oder anderer Installationen gelöscht
-werden.
+`docker system prune --volumes` nid als schnälli Fählerbehebig usfüehre. Derdür chöi
+Date vo däm Versuechsufbau oder vo andere Installatione glöscht
+wärde.
 
-## 13. Updates und Protokollierung
+## 13. Updates und Protokollierig
 
-Bei Änderungen am Empfänger: auf Ubuntu neu bauen, das neue Empfänger-Image
-exportieren, seine Image-ID notieren, auf OL8 übertragen und laden, dann den
-Empfänger mit `--no-build --pull never` neu erstellen. Da
-`dbzproof/receiver:local` wiederverwendet wird, ist das Tag veränderlich. Image-IDs notieren,
-damit Releases unterscheidbar bleiben, und das vorherige Image-Archiv
-für ein Rollback aufbewahren.
+Bi Änderige am Empfänger: uf Ubuntu nöi baue, s nöie Empfänger-Image
+exportiere, sini Image-ID notiere, uf OL8 übertrage und lade, de dr
+Empfänger mit `--no-build --pull never` nöi erstelle. Wüu
+`dbzproof/receiver:local` wiederverwendet wird, isch s Tag veränderlech. Image-IDs notiere,
+damit Releases unterscheidbar blibe, und s vorherige Image-Archiv
+für es Rollback ufbehalte.
 
-Bei Änderungen der PostgreSQL- oder Debezium-Version ein separates,
-geprüftes Bundle erstellen und vor der Bereitstellung testen. Ein
-PostgreSQL-Major-Upgrade ist kein gewöhnlicher Image-Tausch mit dem
-bestehenden Daten-Volume. Quellkonfiguration, Image-Versionen und persistenter
-Zustand müssen zueinander passen; ein Image-Rollback macht Änderungen am
-Datenbank- oder Zustandsformat allein nicht rückgängig.
+Bi Änderige vo dr PostgreSQL- oder Debezium-Version es separates,
+prüefts Bundle erstelle und vor dr Bereitstellig teste. Es
+PostgreSQL-Major-Upgrade isch ke gewöhnleche Image-Tusch mit em
+bestehende Date-Volume. Quellkonfiguration, Image-Versione und persistente
+Zuestand müesse zäme passe; es Image-Rollback macht Änderige am
+Datebank- oder Zuestandsformat allei nid rückgängig.
 
-Die Transfer-Prüfsummendatei, das Image-Manifest, die
-Build-Umgebung, die tatsächliche OL8-Version und -Architektur, die
-Docker-/Compose-Versionen sowie den abschliessenden Bericht `runs/verify-*.json`
-mit den Bereitstellungsnotizen aufbewahren. Für diese Dokumentationsänderung wurde der
-Compose-Override auf dem Entwicklungsrechner geprüft. Das Image-Bundle wurde
-auf dem OL8-Host noch nicht erstellt oder bereitgestellt.
+D Transfer-Prüefsummedatei, s Image-Manifest, d
+Build-Umgäbig, d tatsächlechi OL8-Version und -Architektur, d
+Docker-/Compose-Versione sowie dr abschliessendi Bricht `runs/verify-*.json`
+mit de Bereitstelligsnotize ufbehalte. Für die Dokumentationsänderig isch dr
+Compose-Override uf em Entwickligsrächner prüeft worde. S Image-Bundle isch
+uf em OL8-Host no nid erstellt oder bereitgstellt worde.

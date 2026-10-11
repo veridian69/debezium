@@ -1,5 +1,7 @@
 # Debezium Versuchsaufbau für Entwickler
 
+[Schweizerdeutsch](entwicklerleitfaden-sg.md)
+
 Für Cyrille. Stand: 11. Oktober 2026.
 
 Der Versuchsaufbau untersucht PostgreSQL → Debezium Server → HTTP-Empfänger: Welche Zeilenänderungen kommen an, was steht in den Nachrichten, und wie geht es nach einem Ausfall weiter? Die vorhandenen Tests liefern dafür einen Ausgangspunkt. Für Aussagen über Produktionslasten braucht es eigene Messungen.
@@ -70,7 +72,7 @@ make verify
 
 Der vollständige Verifier schreibt Daten, stoppt den Empfänger und startet Dienste neu. Er bleibt also nicht höflich am Rand stehen. Nur auf einem isolierten Testaufbau ausführen. Keine parallelen Verifier oder manuellen Szenarien starten: Sie teilen Datenbank, Logs und Container; automatisch erzeugte IDs und Reportnamen haben Sekundenauflösung.
 
-Für ein Ziel ohne Internet gelten die separaten Anweisungen in [Oracle Linux 8 offline](oracle-linux-8-offline.md). Dort wird der fertige Empfänger als Image übertragen und ohne Build oder Pull gestartet. `make up` ist dafür ungeeignet, weil es immer den Build anstösst.
+Für ein Ziel ohne Internet gelten die separaten Anweisungen in [Oracle Linux 8 offline](oracle-linux-8-offline-de.md). Dort wird der fertige Empfänger als Image übertragen und ohne Build oder Pull gestartet. `make up` ist dafür ungeeignet, weil es immer den Build anstösst.
 
 ## Nachrichten und Belege
 
@@ -266,4 +268,4 @@ Für grössere Lasttests liest der aktuelle Verifier wiederholt die gesamte Erei
 | `receiver/src/test/java/ch/jclk/dbzproof/receiver/ReceiverTest.java` | Empfängertests |
 | `verify/verify.py` | Matching, Assertions, Recovery, Reports und CLI |
 
-Weitere Betriebsdetails stehen im [Operator Guide](operator-guide.md), Details zur HTTP-Repräsentation in [debezium/README.md](../debezium/README.md).
+Weitere Betriebsdetails stehen im [Operator Guide](operator-guide-de.md), Details zur HTTP-Repräsentation in [debezium/README.md](../debezium/README.md).

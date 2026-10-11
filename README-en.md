@@ -1,6 +1,6 @@
 # Debezium Server plumbing proof
 
-[Deutsch](README-de.md)
+[Deutsch](README-de.md) | [Schweizerdeutsch](README-sg.md)
 
 The details:
 

@@ -10,11 +10,8 @@ runs/*
 # token-saver session state
 .token-saver/
 
-# Codex local session data
-.codex/sessions/
-
-# Local Codex configuration
-.codex/config.toml
+# Local Codex configuration and session data
+.codex/
 
 # Java build output (host-side, if any)
 receiver/target/

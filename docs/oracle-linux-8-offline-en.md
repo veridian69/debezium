@@ -1,6 +1,6 @@
 # Moving the Debezium proof to offline Oracle Linux 8
 
-Language: [Deutsch](oracle-linux-8-offline-de.md)
+Language: [Deutsch](oracle-linux-8-offline-de.md) | [Schweizerdeutsch](oracle-linux-8-offline-sg.md)
 
 This is how Jon's setup reaches the offline host: build on an internet-connected
 Ubuntu VM on the laptop, transfer a bundle, and run on an Oracle Linux 8 host
@@ -201,7 +201,7 @@ tar --exclude='receiver/target' \
     --exclude='__pycache__' \
     --exclude='*.pyc' \
     -czf "$DBZ_BUNDLE/project.tar.gz" \
-    .env compose.yaml Makefile README.md README-de.md README-en.md \
+    .env compose.yaml Makefile README.md README-de.md README-en.md README-sg.md \
     postgres debezium receiver generator verify docs deploy
 
 (

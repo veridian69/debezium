@@ -1,6 +1,6 @@
 # Den Debezium-Versuchsaufbau offline auf Oracle Linux 8 bereitstellen
 
-Sprache: [English](oracle-linux-8-offline-en.md)
+Sprache: [English](oracle-linux-8-offline-en.md) | [Schweizerdeutsch](oracle-linux-8-offline-sg.md)
 
 So kommt Jons Versuchsaufbau auf den Offline-Host: auf einer Ubuntu-VM mit
 Internetzugang auf dem Laptop bauen, ein Bundle übertragen und es auf
@@ -16,7 +16,7 @@ Anwendungs-Images, aber keine Docker-Volumes. Eine bestehende Installation
 muss getrennt bleiben.
 
 Datenfluss, Ereignisvertrag, Verifizierung und Wiederherstellung sind im
-[Operator Guide](operator-guide.md) beschrieben. Alle Shell-Beispiele verwenden Bash.
+[Operator Guide](operator-guide-de.md) beschrieben. Alle Shell-Beispiele verwenden Bash.
 Die Schritte der Reihe nach ausführen; die Rechner mit und ohne
 Netzwerkzugang sind entsprechend gekennzeichnet.
 
@@ -216,7 +216,7 @@ tar --exclude='receiver/target' \
     --exclude='__pycache__' \
     --exclude='*.pyc' \
     -czf "$DBZ_BUNDLE/project.tar.gz" \
-    .env compose.yaml Makefile README.md README-de.md README-en.md \
+    .env compose.yaml Makefile README.md README-de.md README-en.md README-sg.md \
     postgres debezium receiver generator verify docs deploy
 
 (

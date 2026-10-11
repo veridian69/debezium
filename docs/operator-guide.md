@@ -1,36 +1,36 @@
 # Operator Guide: PostgreSQL → Debezium Server → HTTP-Empfänger
 
-[English version](operator-guide-en.md)
+[Deutsch](operator-guide-de.md) | [English](operator-guide-en.md)
 
-Dieser Operator Guide erklärt, wie der Versuchsaufbau läuft, was er prüft und wo seine Grenzen liegen.
-Alle Befehle im Stammverzeichnis des Repositorys ausführen; die Pfade unten sind relativ dazu.
-Für Oracle Linux 8 mit Docker CE und ohne Internetzugang beschreibt der folgende Leitfaden
-die Vorbereitung, den Image-Transfer, die Installation und die hostspezifischen Prüfungen: [Leitfaden zur Offline-Bereitstellung](oracle-linux-8-offline.md).
-Die Vorbereitung erfolgt auf der mit dem Internet verbundenen Ubuntu-VM auf dem Laptop;
-auf dem OL8-Ziel ist SELinux nicht aktiviert. Dieser Leitfaden beschreibt
-das Anwendungsverhalten unabhängig von der Host-Distribution.
+Dä Operator Guide erklärt, wie dr Versuechsufbau louft, was er prüeft und wo sini Gränze ligge.
+Aui Befähl im Stammverzeichnis vom Repository usfüehre; d Pfade unte si relativ derzue.
+Für Oracle Linux 8 mit Docker CE und ohni Internetzuegang beschreibt dr folgende Leitfade
+d Vorbereitig, dr Image-Transfer, d Installation und d hostspezifische Prüefige: [Leitfade für d Offline-Bereitstellig](oracle-linux-8-offline-sg.md).
+D Vorbereitig passiert uf dr Ubuntu-VM uf em Laptop, wo mit em Internet verbunde isch;
+uf em OL8-Ziel isch SELinux nid aktiviert. Dä Leitfade beschreibt
+ds Verhalte vo dr Awändig unabhängig vo dr Host-Distribution.
 
-## Was der Versuchsaufbau belegt
+## Was dr Versuechsufbau belegt
 
-Ein externes Schreibsystem ändert relationale Zeilen in PostgreSQL. Debezium erfasst den
-zeitkritischen Datenstrang und sendet einzelne Änderungs-Envelope an einen Java-HTTP-
-Empfänger. Der Empfänger dient als Ersatz für einen REST-Dienst des Integration Broker;
-er protokolliert Zustellungen, statt PeopleCode auszuführen oder Geschäftsobjekte zu verarbeiten.
-Der separate `bulk`-Datenstrang verbleibt in PostgreSQL und ist für eine hypothetische
-zeitgesteuerte Verarbeitung vorgesehen. Oracle, Datenbank-Links, App Engine und PeopleSoft
-gehören nicht zu diesem Stack.
+Es externs Schreibsystem änderet relationali Zeile in PostgreSQL. Debezium erfasst dr
+zytkritisch Datestrang und schickt einzeln Änderigs-Envelope a ne Java-HTTP-
+Empfänger. Dr Empfänger dient als Ersatz für e REST-Dienst vom Integration Broker;
+er protokolliert Zustellige, statt PeopleCode uszfüehre oder Gschäftsobjekt z verarbeite.
+Dr separati `bulk`-Datestrang blybt in PostgreSQL und isch für e hypothetischi
+zytgstüürti Verarbeitig vorgseh. Oracle, Datebank-Links, App Engine und PeopleSoft
+ghöre nid zu däm Stack.
 
-Es gibt weder Kafka noch einen Warteschlangendienst oder eine Ebene zur Aggregation von
-Geschäftsobjekten. Werden ein Kunde, eine Bestellung und zwei Bestellpositionen in einer
-Transaktion eingefügt, entstehen vier Zeilenereignisse. Sie werden nicht zu einer einzelnen
-Bestellnachricht zusammengefasst. Das bestimmt, wie viel nachgelagerte
-Transaktionsverarbeitung eine echte Integration braucht.
+Es git weder Kafka no e Warteschlangedienst oder e Ebene, wo Gschäftsobjekt aggregiert.
+Wenn e Chund, e Bstellig und zwöi Bstellpositione i einere Transaktion iigfüegt werde,
+entstöh vier Zeileereignis. Die werde nid zu einere einzelne Bstellnachricht
+zämegfasst. Das bestimmt, wie viu nachglagereti
+Transaktionsverarbeitig e echti Integration bruucht.
 
-Der Versuchsaufbau prüft die initiale Erfassung, Filterung, Vorher-/Nachher-Werte, das begrenzte
-HTTP-Wiederholungsverhalten und den Erhalt des Zustands nach einem Neustart. Er belegt weder
-Durchsatz noch produktionsnahe Latenz, Exactly-once-Zustellung oder Verfügbarkeit im Produktivbetrieb.
+Dr Versuechsufbau prüeft d initiali Erfassig, d Filterig, d Vorher-/Nachher-Wärt, ds begränzte
+HTTP-Retry-Verhalte und dr Erhalt vom Zuestand nach em Neustart. Er belegt weder
+Durchsatz no produktionsnahi Latenz, Exactly-once-Zuestellig oder Verfüegbarkeit im Produktivbetrieb.
 
-## Komponenten und Adressen
+## Komponente und Adresse
 
 ```text
 generator (manual psql scenario)
@@ -42,148 +42,148 @@ generator (manual psql scenario)
                                       logs/receiver.log
 host verifier ── reads logs/runs, queries PostgreSQL, controls Compose
 ```
-| Komponente | Adresse innerhalb des Containers | Standardadresse auf dem Host |
+| Komponente | Adräss im Container | Standardadräss uf em Host |
 |---|---|---|
 | PostgreSQL | `postgres:5432` | `127.0.0.1:5432` |
 | Empfänger | `receiver:8080/events` | `http://127.0.0.1:8080/events` |
-| Health-Endpunkt des Empfängers | `receiver:8080/health` | `http://127.0.0.1:8080/health` |
+| Health-Endpunkt vom Empfänger | `receiver:8080/health` | `http://127.0.0.1:8080/health` |
 | Debezium-Health-Endpunkt | Port 8080 in Debezium | `http://127.0.0.1:8081/q/health` |
 
-Der Name des Compose-Projekts lautet `dbzproof`. Die Dienste heissen `postgres`, `receiver`,
-`debezium` und `generator`; der Generator verwendet das Profil `tools` und wird beim normalen
-Start nicht ausgeführt. Veröffentlichte Ports sind ausschliesslich an Loopback gebunden.
-Innerhalb von Compose die Dienstnamen verwenden, nicht die Loopback-Adressen des Hosts.
+Dr Name vom Compose-Projekt isch `dbzproof`. D Dienscht heisse `postgres`, `receiver`,
+`debezium` und `generator`; dr Generator verwendet ds Profil `tools` und wird bim normale
+Start nid usgfüehrt. D veröffentlichte Ports si usschliesslech a Loopback bunde.
+Innerhalb vo Compose d Dienstname verwände, nid d Loopback-Adresse vom Host.
 
-Die eingecheckte `.env` legt PostgreSQL `18.6-alpine`, Debezium Server
-`3.7.0.Final`, Maven `3.10.0-eclipse-temurin-25-alpine` und die Temurin-JRE des Empfängers
-`25.0.4_7-jre-alpine` fest. Das Image des Empfängers wird im Container gebaut;
-Java und Maven auf dem Host sind nicht erforderlich. Debezium verwendet die Laufzeit seiner
-eigenen Images. Beim Vorbereiten eines Bereitstellungspakets die Versionsangaben
-aus `.env` übernehmen.
+D iigcheckti `.env` legt PostgreSQL `18.6-alpine`, Debezium Server
+`3.7.0.Final`, Maven `3.10.0-eclipse-temurin-25-alpine` und d Temurin-JRE vom Empfänger
+`25.0.4_7-jre-alpine` fescht. Ds Image vom Empfänger wird im Container bout;
+Java und Maven uf em Host si nid nötig. Debezium verwendet d Laufzyt vo sine
+eigene Images. Bim Vorbereite vo mene Bereitstelligspaket d Versionsagabe
+us `.env` übernäh.
 
-## Voraussetzungen und gekoppelte Konfiguration
+## Voraussetzige und gchoppleti Konfiguration
 
-Für die dokumentierte Verifizierungsumgebung benötigt der Host Docker CE, das Docker-Compose-
-Plugin, Bash, Make, curl und Python 3.12. Der Verifier verwendet ausschliesslich die
-Python-Standardbibliothek; eine pip-Umgebung und jq sind nicht erforderlich. Ausserdem ruft
-er Docker Compose und `tail` auf. Der Generator verwendet psql aus dem PostgreSQL-Image;
-psql auf dem Host ist optional.
+Für d dokumentierti Verifizierungsumgäbig bruucht dr Host Docker CE, ds Docker-Compose-
+Plugin, Bash, Make, curl und Python 3.12. Dr Verifier verwendet usschliesslech d
+Python-Standardbibliothek; e pip-Umgäbig und jq si nid nötig. Usserdäm rüeft
+er Docker Compose und `tail` uf. Dr Generator verwendet psql us em PostgreSQL-Image;
+psql uf em Host isch optional.
 
-Die Zugangsdaten lauten `dbz` / `dbz`, die Datenbank heisst `appdb`. Es handelt sich um
-Superuser-Zugangsdaten für die Demonstration; der Netzwerkverkehr zum Empfänger verwendet
-unverschlüsseltes HTTP ohne Authentifizierung. Diese Dienste nicht durch eine beiläufige Änderung
-der Loopback-Bindings nach aussen öffnen.
+D Zuegangsdate si `dbz` / `dbz`, d Datebank heisst `appdb`. Das si
+Superuser-Zuegangsdate für d Demonstration; dr Netzwerkverkehr zum Empfänger verwendet
+unverschlüsslets HTTP ohni Authentifizierig. Die Dienscht nid dür e beiläufigi Änderig
+vo de Loopback-Bindings nach usse öffne.
 
-`.env` konfiguriert **nicht** alle Stellen, an denen Ports und Zugangsdaten verwendet werden:
+`.env` konfiguriert **nid** aui Stelle, wo Ports und Zuegangsdate verwendet werde:
 
-- `compose.yaml` liest die Host-Ports und PostgreSQL-Zugangsdaten aus `.env`.
-- `debezium/application.properties` enthält die Literale `dbz`, `dbz`, `appdb`.
-- `verify/verify.py` enthält fest eingetragene Host-URLs auf den Ports 8080 und 8081 sowie
-  in seinem psql-Wrapper die fest eingetragenen Datenbank-Benutzernamen und -Datenbanknamen `dbz` und `appdb`.
-- Die Health-URLs, `psql` und `seed` im `Makefile` enthalten diese Literale ebenfalls.
+- `compose.yaml` liist d Host-Ports und PostgreSQL-Zuegangsdate us `.env`.
+- `debezium/application.properties` enthält d Literale `dbz`, `dbz`, `appdb`.
+- `verify/verify.py` enthält fescht iitragni Host-URLs uf de Ports 8080 und 8081 sowie
+  i sim psql-Wrapper d fescht iitragne Datebank-Benutzernäme und Datebanknäme `dbz` und `appdb`.
+- D Health-URLs, `psql` und `seed` im `Makefile` enthalte die Literale o.
 
-Bei Änderungen an Ports oder Zugangsdaten diese Stellen gemeinsam anpassen. Bestehende
-PostgreSQL-Volumes behalten ihre ursprünglichen Benutzer und Datenbanken; Änderungen an
-`POSTGRES_*`-Umgebungsvariablen initialisieren sie nicht neu. Die Datenbankänderung ausdrücklich planen;
-eine Anpassung der Umgebung übernimmt keine Migration.
+Bi Änderige a Ports oder Zuegangsdate die Stelle mitenand apasse. Bestohendi
+PostgreSQL-Volumes bhalte ihri ursprüngleche Benutzer und Datebanke; Änderige a
+`POSTGRES_*`-Umgäbigsvariable initialisiere sie nid nöi. D Datebankänderig ausdrücklich plane;
+e Apassig vo dr Umgäbig übernimmt ke Migration.
 
-Empfänger und Generator laufen mit `HOST_UID:HOST_GID` aus `.env` (Standardwert
-1000:1000). Auf dem Zielsystem `id -u` und `id -g` prüfen und die Werte vor
-dem Start passend setzen. Die Host-Verzeichnisse `logs/` und `runs/` müssen für diese Identität
-beschreibbar sein. Berechtigungen des Image-Verzeichnisses setzen die Berechtigungen eines
-Bind-Mounts nicht ausser Kraft.
+Empfänger und Generator loufe mit `HOST_UID:HOST_GID` us `.env` (Standardwärt
+1000:1000). Uf em Zielsystem `id -u` und `id -g` prüefe und d Wärt vor
+em Start passend setze. D Host-Verzeichnis `logs/` und `runs/` müesse für die Identität
+beschrybbar si. D Berechtigunge vom Image-Verzeichnis setze d Berechtigunge vo mene
+Bind-Mount nid usser Chraft.
 
-## Erfassungsmechanik von PostgreSQL
+## Erfassigsmechanik vo PostgreSQL
 
 PostgreSQL startet mit `wal_level=logical`, `max_wal_senders=10` und
-`max_replication_slots=10`. WAL protokolliert Datenbankänderungen; `pgoutput` stellt den
-von Debezium konsumierten logischen Replikationsstrom bereit.
-Der benannte logische Slot `dbz_slot` hält die Position im Strom fest und bewahrt das von
-seinem Verbraucher benötigte WAL auf. Die benannte Publication `dbz_publication` wählt die
-Tabellen aus. Eine Publication ist eine Auswahlregel und keine Zustellwarteschlange.
+`max_replication_slots=10`. WAL protokolliert Datebankänderige; `pgoutput` stellt dr
+logisch Replikationsstrom bereit, wo Debezium konsumiert.
+Dr benannt logisch Slot `dbz_slot` haltet d Position im Strom fescht und bewahrt ds WAL uf,
+wo si Verbraucher bruucht. D benannti Publication `dbz_publication` wählt d
+Tabelle us. E Publication isch e Uswahlregel und ke Zuestellwarteschlange.
 
-Das initiale SQL legt die folgenden Tabellen für die Erfassung an:
+Ds initiale SQL legt die folgende Tabelle für d Erfassig aa:
 
-| Tabelle | Beziehung | Seed-Zeilen |
+| Tabelle | Beziehig | Seed-Zeile |
 |---|---|---:|
-| `timecritical.customers` | Kundenidentität und Kontaktfelder | 3 |
-| `timecritical.orders` | Fremdschlüssel zum Kunden | 4 |
-| `timecritical.order_items` | Fremdschlüssel zur Bestellung | 8 |
+| `timecritical.customers` | Chundeidentität und Kontaktfälder | 3 |
+| `timecritical.orders` | Frömdschlüssel zum Chund | 4 |
+| `timecritical.order_items` | Frömdschlüssel zur Bstellig | 8 |
 
-Alle Tabellen besitzen den identity-generierten bigint-Primärschlüssel `id`. Geldbeträge
-werden als ganzzahlige Cent-Beträge gespeichert. Auch die separaten Tabellen
-`bulk.batch_jobs` und `bulk.pending_records` enthalten Seed-Zeilen, werden aber nicht
-erfasst. Die zweite Tabelle verweist auf die erste.
+Aui Tabelle hei dr identity-generiert bigint-Primärschlüssel `id`. Gäldbeträg
+werde als ganzzahligi Cent-Beträg gspeicheret. O d separate Tabelle
+`bulk.batch_jobs` und `bulk.pending_records` enthalte Seed-Zeile, werde aber nid
+erfasst. D zwöiti Tabelle verweist uf d erschti.
 
-`postgres/init/30-replication.sql` erstellt die Publication genau für die drei
-zeitkritischen Tabellen. Der Connector legt in `debezium/application.properties` ausserdem
-eine Schema-Allowlist und eine explizite Tabellen-Allowlist fest. Beide Ebenen sollten
-übereinstimmen. Eine neue Tabelle wird nicht allein dadurch erfasst, dass sie im Schema
-vorhanden ist. Die automatische Erstellung der Publication steht auf `filtered`, damit
-Debezium bei Bedarf eine gefilterte Publication erstellen kann; beim normalen ersten Start
-wird die mit SQL erstellte Publication verwendet.
+`postgres/init/30-replication.sql` erstellt d Publication genau für die drei
+zytkritische Tabelle. Dr Connector legt i `debezium/application.properties` usserdäm
+e Schema-Allowlist und e expliziti Tabelle-Allowlist fescht. Beidi Ebene sötte
+übereinstimme. E nöii Tabelle wird nid allei dadür erfasst, dass sie im Schema
+vorhande isch. D automatischi Erstellig vo dr Publication steit uf `filtered`, damit
+Debezium bi Bedarf e gfiltereti Publication cha erstelle; bim normale erschte Start
+wird d Publication verwendet, wo mit SQL erstellt worde isch.
 
-Für alle drei erfassten Tabellen ist `REPLICA IDENTITY FULL` gesetzt. Dadurch stehen bei
-Updates und Deletes die alten Zeilenwerte zur Verfügung, sodass der Verifier geänderte
-Werte in `before` prüfen kann. Ein Primärschlüssel identifiziert zwar eine Zeile, liefert
-aber nicht das vollständige alte Zeilenabbild, das dieser Versuchsaufbau benötigt. FULL erhöht den
-Replikationsaufwand und das Datenvolumen; diese Kosten für echte Tabellen bewerten.
+Für aui drei erfasste Tabelle isch `REPLICA IDENTITY FULL` gsetzt. So stöh bi
+Updates und Deletes d alte Zeilewärt zur Verfüegig, sodass dr Verifier gändereti
+Wärt i `before` cha prüefe. E Primärschlüssel identifiziert zwar e Zeile, liefert
+aber nid ds vollständige alte Zeileabbild, wo dä Versuechsufbau bruucht. FULL erhöht dr
+Replikationsufwand und ds Datevolume; die Chöschte für echti Tabelle beurteile.
 
-Init-Skripte werden nur ausgeführt, wenn PostgreSQL ein leeres Daten-Volume initialisiert.
-Ein Neustart einer bestehenden Datenbank übernimmt keine Änderungen am Schema oder
-an Replikations-SQL. Für beibehaltene Daten gezielte Migrations-SQL verwenden;
-eine reine Reproduktionsumgebung kann vollständig zurückgesetzt werden.
+Init-Scripts werde nume usgfüehrt, wenn PostgreSQL es läärs Date-Volume initialisiert.
+E Neustart vo nere bestohende Datebank übernimmt ke Änderige am Schema oder
+am Replikations-SQL. Für bhalteni Date gezielts Migrations-SQL verwände;
+e reini Reproduktionsumgäbig cha komplett zrügggsetzt werde.
 
-## Initialer Snapshot und Streaming
+## Initiale Snapshot und Streaming
 
-`snapshot.mode=initial` bedeutet: Ein Connector ohne gespeicherten Zustand liest zuerst
-die bereits vorhandenen erfassten Zeilen und verarbeitet anschliessend WAL-Änderungen weiter.
-Das Seed-SQL wird vor dem Start von Debezium ausgeführt. Ein sauberer erster Start liefert
-daher 15 `op=r`-Envelope. Die erwarteten Anzahlen stehen in `postgres/expected_snapshot.json`.
+`snapshot.mode=initial` bedeutet: E Connector ohni gspeicherete Zuestand liist zersch
+d bereits vorhande erfasste Zeile und verarbeitet dernah WAL-Änderige wyter.
+Ds Seed-SQL wird vor em Start vo Debezium usgfüehrt. E suubere erschte Start liefert
+drum 15 `op=r`-Envelope. D erwartete Azahle stöh i `postgres/expected_snapshot.json`.
 
-Snapshot-Markierungen sind nicht auf die Zeichenfolge `true` beschränkt. Der Verifier
-akzeptiert in `source.snapshot` die Werte `true`, `first`, `last`,
-`first_in_data_collection` und `last_in_data_collection`. Streaming-Ereignisse enthalten
-normalerweise die Zeichenfolge `false`. Die tatsächlichen Daten prüfen, statt diese
-Zeichenfolgen anhand ihres Wahrheitswerts in Booleans umzuwandeln.
+Snapshot-Markierige si nid uf d Zeichefolg `true` beschränkt. Dr Verifier
+akzeptiert i `source.snapshot` d Wärt `true`, `first`, `last`,
+`first_in_data_collection` und `last_in_data_collection`. Streaming-Ereignis enthalte
+normalerwys d Zeichefolg `false`. D tatsächleche Date prüefe, statt die
+Zeichefolge anhand vo ihrem Wahrheitswärt i Booleans umzuwandle.
 
-Offsets werden unter `/debezium/data/offsets.dat` im benannten Volume
-`dbzproof_debezium_data` gespeichert. Das konfigurierte Intervall zum Schreiben der Offsets
-beträgt 0. Bei einem normalen Neustart bleibt dieser Zustand erhalten; der Connector sollte
-ohne neuen Snapshot fortfahren. Der Verifier prüft dieses Verhalten; eine Offset-
-Einstellung allein ist kein Nachweis. Werden Offsets gelöscht, während eine befüllte
-Datenbank erhalten bleibt, kann ein neuer Snapshot aller aktuell erfassten Zeilen entstehen
-anstelle der ursprünglichen Seed-Fixture mit 15 Zeilen.
+Offsets werde under `/debezium/data/offsets.dat` im benannte Volume
+`dbzproof_debezium_data` gspeicheret. Ds konfigurierte Intervall zum Schrybe vo de Offsets
+beträgt 0. Bi mene normale Neustart blybt dä Zuestand erhalte; dr Connector sött
+ohni nöie Snapshot wyterfahre. Dr Verifier prüeft das Verhalte; e Offset-
+Iistellig allei isch ke Nachwys. Wenn Offsets glöscht werde, während e befüllti
+Datebank erhalte blybt, cha e nöie Snapshot vo aune aktuell erfasste Zeile entstoh
+anstelle vo dr ursprüngleche Seed-Fixture mit 15 Zeile.
 
-## Ein Envelope lesen
+## Es Envelope läse
 
-Die JSON-Schema-Metadaten für Schlüssel und Werte sind deaktiviert. Ein Ereignis ist selbst
-das Envelope und hat keinen äusseren `schema`/`payload`-Wrapper. HTTP-Batching ist deaktiviert.
-Der Empfänger entfernt überflüssige JSON-Leerzeichen und schreibt das JSON in eine Zeile,
-behält dabei aber Felder und Werte bei; er entfernt keine Metadaten, packt Zeilen nicht aus
-und setzt keine Geschäftsobjekte zusammen.
+D JSON-Schema-Metadate für Schlüssel und Wärt si deaktiviert. Es Ereignis isch sälber
+ds Envelope und het ke üssere `schema`/`payload`-Wrapper. HTTP-Batching isch deaktiviert.
+Dr Empfänger entfernt überflüssigi JSON-Leerzeiche und schrybt ds JSON i eini Zeile,
+bhaltet derbi aber Fälder und Wärt bi; er entfernt ke Metadate, packt Zeile nid us
+und setzt ke Gschäftsobjekt zäme.
 
-| Feld | Bedeutung in diesem Versuchsaufbau |
+| Fäld | Bedeutig i däm Versuechsufbau |
 |---|---|
-| `op` | `r` Snapshot-Lesevorgang, `c` Anlegen, `u` Aktualisieren, `d` Löschen |
-| `before` | alte Zeile bei Update/Delete; bei Create/Snapshot null |
-| `after` | neue bzw. aktuelle Zeile; bei Delete null |
+| `op` | `r` Snapshot-Läsevorgang, `c` Aalege, `u` Aktualisiere, `d` Lösche |
+| `before` | alti Zeile bi Update/Delete; bi Create/Snapshot null |
+| `after` | nöii bzw. aktuelli Zeile; bi Delete null |
 | `source.schema`, `source.table` | Ursprungsrelation |
-| `source.lsn` | PostgreSQL-Quellposition für die Duplikatmeldung |
-| `source.txId` | PostgreSQL-Transaktions-ID; bei den vier T1-Insert-Operationen gemeinsam |
-| `source.snapshot` | Snapshot-Markierungszeichenfolge |
-| `source.ts_ms` | Quellzeitstempel für lokale Zeitmessungen |
-| `ts_ms`, `ts_us`, `ts_ns` | verfügbare Verarbeitungszeitstempel des Connectors |
-| `transaction` | nullable Transaktionsmetadaten; kann hier null sein |
+| `source.lsn` | PostgreSQL-Quellposition für d Duplikatmäldig |
+| `source.txId` | PostgreSQL-Transaktions-ID; bi de vier T1-Insert-Operatione gemeinsam |
+| `source.snapshot` | Snapshot-Markierungszeichefolg |
+| `source.ts_ms` | Quellzytstämpfel für lokali Zytmässige |
+| `ts_ms`, `ts_us`, `ts_ns` | verfüegbari Verarbeitigszytstämpfel vom Connector |
+| `transaction` | nullable Transaktionsmetadate; cha hie null si |
 
-`source.txId` und das oberste Feld `transaction` sind unterschiedliche Felder. Das Szenario
-verwendet das erste, um die gemeinsame Transaktionszugehörigkeit zu zeigen. Es setzt weder
-nicht-null Transaktionsmetadaten auf oberster Ebene voraus noch belegt es eine atomare
-HTTP-Zustellung pro Transaktion. Der Empfänger sieht einzelne Requests und darf nicht
-annehmen, dass alle zugehörigen Ereignisse gemeinsam eintreffen.
+`source.txId` und ds oberste Fäld `transaction` si unterschiedlechi Fälder. Ds Szenario
+verwendet ds erschte, um d gemeinsami Transaktionszueghörigkeit z zeige. Es setzt weder
+nid-null Transaktionsmetadate uf dr oberste Ebene vorus no belegt es e atomari
+HTTP-Zuestellig pro Transaktion. Dr Empfänger gseht einzeln Requests und darf nid
+anäh, dass aui zueghörige Ereignis mitenand aachöme.
 
-Die gekürzten Beispiele zeigen nur die Struktur; IDs, Zeitstempel und Quellpositionen
-variieren. Tatsächliche Envelope enthalten weitere Quell- und Zeilenfelder.
+D chürzte Bispil zeige nume d Struktur; IDs, Zytstämpfel und Quellpositione
+variiere. Tatsächlechi Envelope enthalte wyteri Quell- und Zeilefälder.
 
 
 ```json
@@ -192,50 +192,50 @@ variieren. Tatsächliche Envelope enthalten weitere Quell- und Zeilenfelder.
 {"before":{"id":4,"email":"demo@example.test"},"after":{"id":4,"email":"demo-updated@example.test"},"source":{"schema":"timecritical","table":"customers","snapshot":"false","txId":801,"lsn":2100},"op":"u","transaction":null}
 {"before":{"id":10,"sku":"SKU-demo-B"},"after":null,"source":{"schema":"timecritical","table":"order_items","snapshot":"false","txId":803,"lsn":2300},"op":"d","transaction":null}
 ```
-Die beobachtete HTTP-Darstellung enthält keinen separaten Record-Key- oder Topic-Header.
-Eine Zeile über `source.schema`, `source.table` und `after.id` oder bei
-einem Delete über `before.id` identifizieren. Das Topic-Präfix `plumbing` bedeutet nicht, dass der Topic-
-Name als Ziel-Header übertragen wird. Receipt-Header enthalten HTTP-Kontext; die beobachteten
-Werte `x-debezium-__debezium.context.*` sind base64-kodiertes JSON und keine Zeilenschlüssel.
-Der Verifier protokolliert vorhandene Header, verlangt sie aber nicht.
+D beobachteti HTTP-Darstellig enthält ke separate Record-Key- oder Topic-Header.
+E Zeile über `source.schema`, `source.table` und `after.id` oder bi
+mene Delete über `before.id` identifiziere. Ds Topic-Präfix `plumbing` bedeutet nid, dass dr Topic-
+Name als Ziel-Header übertrage wird. Receipt-Header enthalte HTTP-Kontext; d beobachtete
+Wärt `x-debezium-__debezium.context.*` si base64-kodierts JSON und ke Zeileschlüssel.
+Dr Verifier protokolliert vorhandeni Header, verlangt sie aber nid.
 
-Delete-Tombstones sind mit `tombstones.on.delete=false` deaktiviert; Delete-
-**Envelope** bleiben aktiviert. Der Empfänger akzeptiert leere oder JSON-null-Bodies mit
-HTTP 204 und einem Tombstone-Receipt, ohne eine Zeile zur Ereignisdatei hinzuzufügen.
+Delete-Tombstones si mit `tombstones.on.delete=false` deaktiviert; Delete-
+**Envelope** blybe aktiviert. Dr Empfänger akzeptiert lääri oder JSON-null-Bodies mit
+HTTP 204 und emene Tombstone-Receipt, ohni e Zeile zur Ereignisdatei dezuezfüege.
 
-## Dauerhaftigkeit des Empfängers und seine drei Logs
+## Dauerhaftigkeit vom Empfänger und sini drei Logs
 
-Bei gültigem, nicht-null JSON hängt der Empfänger mit einem FileChannel und `force(true)`
-eine vollständige JSONL-Zeile an, versucht danach ein Receipt zu schreiben und antwortet mit
-HTTP 200. Schlägt das Anhängen eines Ereignisses fehl, lautet die Antwort HTTP 500;
-ungültiges JSON führt zu HTTP 400. Schreibzugriffe sind gesperrt, damit parallele
-Anhänge sich nicht ineinander verschachteln. Die JSON-Prüfung validiert kein fachliches
-Schema: Der Endpunkt dient lediglich als Protokollierungs-Ersatz.
+Bi gültigem, nid-null JSON hängt dr Empfänger mit emene FileChannel und `force(true)`
+e vollständigi JSONL-Zeile aa, versuecht dernah es Receipt z schrybe und antwortet mit
+HTTP 200. Wenn ds Aahänge vo mene Ereignis fählschlaht, isch d Antwort HTTP 500;
+ungültigs JSON füehrt zu HTTP 400. Schreibzuegriff si gschperrt, damit paralleli
+Aahäng nid ineinander verschachtlet werde. D JSON-Prüefig validiert ke fachlechs
+Schema: Dr Endpunkt dient nume als Protokollierungs-Ersatz.
 
-Das Anhängen des Ereignisses bildet die Bestätigungsgrenze. Das Schreiben eines Receipts
-erfolgt nach bestem Bemühen: Ein Fehler dabei wird protokolliert und ändert eine erfolgreiche
-Ereigniszustellung nicht in eine Fehlermeldung. Ein Absturz oder eine verlorene Antwort nach
-dem dauerhaften Schreiben kann deshalb eine Wiederholung und eine weitere Ereigniszeile
-auslösen. Eine Duplikatunterdrückung gibt es nicht.
+Ds Aahänge vom Ereignis bildet d Bestätigungsgränze. Ds Schrybe vo mene Receipt
+passiert nach beschtem Bemühe: E Fähler derbi wird protokolliert und änderet e erfolgrichi
+Ereigniszuestellig nid i e Fählermäldig. E Absturz oder e verloreni Antwort nach
+em dauerhafte Schrybe cha drum e Wiederholig und e wyteri Ereigniszeile
+uslöse. E Duplikatunterdrückig git es nid.
 
-| Host-Pfad | Inhalt | Zweck |
+| Host-Pfad | Inhalt | Zwäck |
 |---|---|---|
-| `logs/events.jsonl` | kompakte vollständige Envelope | primärer Zustellnachweis |
-| `logs/receipts.jsonl` | Anforderungszeit, Status, Bytes, Header in Kleinbuchstaben, Zusammenfassung | HTTP-/Zeitdiagnose |
-| `logs/receiver.log` | Diagnosemeldungen des Empfängers | Schreibfehler und Request-Fehler |
-| `runs/<RUN_ID>/expected.jsonl` | die sieben vom Generator erwarteten Änderungen | unabhängige Erwartungen für den Abgleich |
-| `runs/<RUN_ID>/manifest.json` | Szenario-ID, Zeiten und Anzahlen | Zuordnung eines Durchlaufs |
-| `runs/verify-*.json` | Ergebnisse und Beobachtungen des Verifiers | Abnahmenachweis aufbewahren |
+| `logs/events.jsonl` | kompakti vollständigi Envelope | primäre Zuestellnachwys |
+| `logs/receipts.jsonl` | Aaforderigszyt, Status, Bytes, Header i Chlybuechstabe, Zämefassig | HTTP-/Zytdiagnose |
+| `logs/receiver.log` | Diagnosemäldige vom Empfänger | Schreibfähler und Request-Fähler |
+| `runs/<RUN_ID>/expected.jsonl` | die sibe vom Generator erwartete Änderige | unabhängigi Erwartige für dr Abglich |
+| `runs/<RUN_ID>/manifest.json` | Szenario-ID, Zyte und Azahle | Zueordnig vo mene Durchlouf |
+| `runs/verify-*.json` | Resultat und Beobachtige vom Verifier | Abnahmenachwys ufbewahre |
 
-Der Receipt-`seq`-Wert liegt nur im Arbeitsspeicher und beginnt nach jedem Neustart des
-Empfängers erneut. Der Wert ist keine global eindeutige Ereignis-ID. Für die
-Zeitmessung werden derzeit die geordneten Event-Receipts mit den Zeilen der Ereignisdatei
-abgeglichen. Fehlende Receipts können diesen Abgleich beeinträchtigen; erfolgreiche
-Zustellung und Latenznachweis sind getrennte Aussagen. Der Health-Check des Empfängers
-prüft, ob das übergeordnete Verzeichnis der Ereignisdatei beschreibbar ist. Er führt keinen
-dauerhaften Testschreibvorgang aus und garantiert keinen freien Speicherplatz.
+Dr Receipt-`seq`-Wärt ligt nume im Arbeitsspeicher und fangt nach jedem Neustart vom
+Empfänger wieder vo vorne aa. Dr Wärt isch ke global eindeutigi Ereignis-ID. Für d
+Zytmässig werde aktuell d gordnete Event-Receipts mit de Zeile vo dr Ereignisdatei
+abgliche. Fählendi Receipts chöi dä Abglich beeinträchtige; erfolgrichi
+Zuestellig und Latenznachwys si separati Ussage. Dr Health-Check vom Empfänger
+prüeft, öb ds übergordnete Verzeichnis vo dr Ereignisdatei beschrybbar isch. Er macht ke
+dauerhafte Testschreibvorgang und garantiert ke freie Speicherplatz.
 
-## Alltägliche Befehle
+## Befähl für dr Alltag
 
 
 ```sh
@@ -253,74 +253,74 @@ make restart                       # restart all services; preserve state
 make down                          # remove containers/network; retain volumes and host files
 make up                            # recreate services using retained state
 ```
-`make up` baut immer zuerst den Empfänger. Diesen Befehl auf dem Vorbereitungshost
-mit Internetzugang verwenden. Auf dem Offline-Ziel mit den übertragenen Images
-ohne Build und Pull starten, wie im Offline-Leitfaden beschrieben,
-auch nach einem vollständigen Reset der Testumgebung. `make seed` wendet das idempotente
-Seed-SQL erneut an; es setzt keinen sauberen Snapshot-Zustand her. `ON CONFLICT DO NOTHING`
-verhindert doppelte Seed-Einträge, setzt geänderte Felder vorhandener Zeilen aber nicht auf
-ihre ursprünglichen Werte zurück.
+`make up` bout immer zersch dr Empfänger. Dä Befähl uf em Vorbereitigshost
+mit Internetzuegang verwände. Uf em Offline-Ziel mit de übertragene Images
+ohni Build und Pull starte, wie im Offline-Leitfade beschribe,
+o nach emene vollständige Reset vo dr Testumgäbig. `make seed` wändet ds idempotente
+Seed-SQL wieder aa; es stellt ke suubere Snapshot-Zuestand her. `ON CONFLICT DO NOTHING`
+verhinderet doppleti Seed-Iiträg, setzt gändereti Fälder vo vorhandene Zeile aber nid uf
+ihri ursprüngleche Wärt zrügg.
 
-Für jeden Generatorlauf ist eine neue ID erforderlich: Buchstaben, Ziffern, Punkte,
-Unterstriche und Bindestriche; das erste Zeichen muss ein Buchstabe oder eine Ziffer sein.
-Bereits vorhandene Run-Verzeichnisse werden abgewiesen. Eine ID ist optional, wenn eine
-UTC-Zeitstempel-ID passt: `make generate`. Der Generator committet vier Inserts in T1,
-danach ein Kunden-Update in T2, ein Bestellungs-Update in T3 und ein Löschen einer
-Bestellposition in T4: insgesamt sieben erwartete erfasste Ereignisse. Zusätzlich fügt er
-einen Bulk-Job und zwei ausstehende Datensätze ein und aktualisiert einen ausstehenden
-Datensatz. Die aufgezeichneten erwarteten Zeilen verwenden die tatsächlich generierten
+Für jede Generatorlouf isch e nöii ID nötig: Buechstabe, Ziffere, Pünkt,
+Understriche und Bindestriche; ds erschte Zeiche muess e Buechstabe oder e Ziffer si.
+Bereits vorhandeni Run-Verzeichnis werde abgwise. E ID isch optional, wenn e
+UTC-Zytstämpfel-ID passt: `make generate`. Dr Generator committet vier Inserts i T1,
+dernah es Chunde-Update i T2, es Bstelligs-Update i T3 und ds Lösche vo nere
+Bstellposition i T4: insgesamt sibe erwarteti erfassti Ereignis. Zuesätzlech füegt er
+e Bulk-Job und zwöi usstehendi Datesätz ii und aktualisiert e usstehende
+Datesatz. D ufgzeichnete erwartete Zeile verwände d tatsächlich generierte
 Primärschlüssel.
 
-## Sichere Abnahmefolge
+## Sicheri Abnahmefolg
 
-Der vollständige Verifier ist ein aktiver Test-Harness: Er schreibt Datenbankzeilen,
-stoppt den Empfänger, lässt das Retry-Limit des Sinks ausschöpfen und startet Dienste neu.
-Nur auf diesem isolierten Versuchsaufbau ausführen. Ein gemeinsam genutzter Dienst,
-der ohne Unterbrechung verfügbar sein muss, ist dafür ungeeignet. Keine zwei Verifier
-oder einen Verifier und ein manuelles Szenario gleichzeitig ausführen; Run-IDs verwenden
-Zeitstempel mit einer Auflösung von einer Sekunde, und die gemeinsamen Logs werden global
-ausgewertet.
+Dr vollständigi Verifier isch e aktive Test-Harness: Er schrybt Datebankzeile,
+stoppt dr Empfänger, laht ds Retry-Limit vom Sink usschöpfe und startet Dienscht nöi.
+Nume uf däm isolierte Versuechsufbau usfüehre. E gemeinsam gnutzte Dienst,
+wo ohni Unterbruch verfüegbar muess si, isch derfür ungeeignet. Ke zwöi Verifier
+oder e Verifier und es manuells Szenario glychzytig usfüehre; Run-IDs verwände
+Zytstämpfel mit ere Uflösig vo einere Sekunde, und d gemeinsame Logs werde global
+usgwärtet.
 
-Die folgende Abfolge gilt für den Vorbereitungshost mit Internetzugang. Auf dem
-Offline-Ziel `make up` durch den Startbefehl des Offline-Leitfadens ohne Build und Pull ersetzen.
-Für eine reproduzierbare Abnahme des ersten Starts zunächst alle benötigten Logs
-und Berichte sichern, danach den flüchtigen Zustand dieses Projekts ausdrücklich verwerfen:
+Die folgendi Abfolg gilt für dr Vorbereitigshost mit Internetzuegang. Uf em
+Offline-Ziel `make up` dür dr Startbefähl vom Offline-Leitfade ohni Build und Pull ersetze.
+Für e reproduzierbari Abnahme vom erschte Start zersch aui benötigte Logs
+und Berichte sichere, dernah dr flüchtig Zuestand vo däm Projekt ausdrücklich verwärfe:
 
 ```sh
 make reset                         # DESTRUCTIVE: see exact scope below
 make up
 make verify
 ```
-`make reset` führt Compose mit Volumes herunter und entfernt
+`make reset` fahrt Compose mit Volumes abe und entfernt
 `dbzproof_pg_data`, `dbzproof_debezium_data`, `logs/events.jsonl`,
-`logs/receipts.jsonl`, `logs/receiver.log` sowie den Inhalt von `runs/` ausser
-`.gitkeep`. Das ist kein gewöhnlicher Neustart. Kein globales Docker-Prune verwenden.
+`logs/receipts.jsonl`, `logs/receiver.log` sowie dr Inhalt vo `runs/` usser
+`.gitkeep`. Das isch ke gewöhnleche Neustart. Ke globals Docker-Prune verwände.
 
-Für die Verifizierung eines frischen Snapshots müssen sowohl das Datenbank-/Offset-Paar als
-auch die Logs frisch sein. Alte Logs können dazu führen, dass alte Snapshot-Zeilen
-mitgezählt werden; nur die Logs zu löschen, während die Offsets erhalten bleiben, entfernt
-Belege, löst aber keinen neuen Snapshot aus. Wird nur ein Volume neu initialisiert, entsteht
-ein anderer Test und die Kontinuität kann verloren gehen. Die vollständige Prüfung erwartet
-genau 3/4/8 Seed-Snapshot-Zeilen. Ein erneuter Snapshot einer befüllten Szenario-Datenbank
-erfüllt diese Fixture nicht.
+Für d Verifizierig vo mene frische Snapshot müesse sowohl ds Datebank-/Offset-Paar als
+o d Logs frisch si. Alti Logs chöi derzue füehre, dass alti Snapshot-Zeile
+mitzellt werde; nume d Logs z lösche, während d Offsets erhalte blybe, entfernt
+Beleg, löst aber ke nöie Snapshot us. Wenn nume eis Volume nöi initialisiert wird, entsteit
+e andere Test und d Kontinuität cha verlore gah. D vollständigi Prüefig erwartet
+genau 3/4/8 Seed-Snapshot-Zeile. E erneute Snapshot vo nere befüllte Szenario-Datebank
+erfüllt die Fixture nid.
 
-## Sieben CLI-Prüfungen, acht historische Kriterien
+## Sibe CLI-Prüefige, acht historischi Kriterie
 
-Das ursprüngliche Ziel nennt acht Abnahmekriterien. Die Implementierung stellt sieben
-einzelne Prüfungen sowie `all` bereit: `scenario` kombiniert den Abgleich der
-Zeilen-Envelope mit dem Kriterium gemeinsamer Transaktionen. Einen achten einzelnen
-Befehl gibt es nicht. Die historische Formulierung „eight checks“ bezieht sich auf die
-Kriterien und nicht auf CLI-Unterbefehle.
+Ds ursprüngleche Ziel nennt acht Abnahmekriterie. D Implementierig stellt sibe
+einzelni Prüefige sowie `all` bereit: `scenario` kombiniert dr Abglich vo de
+Zeile-Envelope mit em Kriterium vo gemeinsame Transaktione. E achte einzelne
+Befähl git es nid. D historischi Formulierig «eight checks» bezieht sich uf d
+Kriterie und nid uf CLI-Unterbefähl.
 
-| CLI-Prüfung | Tatsächliche Funktion |
+| CLI-Prüefig | Tatsächlechi Funktion |
 |---|---|
-| `health` | beide Health-Endpunkte per GET abfragen; die letzte Zeile der Host-Ereignisdatei einlesen |
-| `snapshot` | auf Seed-Envelope mit `r` warten; exakte Anzahlen 3/4/8 und Markierungen prüfen |
-| `scenario` | einen neuen Durchlauf erzeugen; sieben Zeilen, Vorher-Bilder und vier gemeinsame T1-txIds abgleichen |
-| `bulk` | Bulk-Zeilen des Durchlaufs prüfen; Bulk aktualisieren, auf eine erfasste Markierung warten und Bulk-Envelope zurückweisen |
-| `outage-short` | Empfänger 10 Sekunden stoppen; Szenario erzeugen; Empfänger starten; Zustellung bei laufendem Debezium abwarten |
-| `outage-long` | Empfänger bis zum Engine-Fehler stoppen; Empfänger wiederherstellen; Debezium ausdrücklich neu starten; Rückstand abarbeiten lassen |
-| `restart` | vor und nach dem Neustart einen Durchlauf erzeugen; erhaltene Zeilen und unveränderte Snapshot-Anzahl prüfen |
+| `health` | beidi Health-Endpunkt per GET abfrage; d letschti Zeile vo dr Host-Ereignisdatei iiläse |
+| `snapshot` | uf Seed-Envelope mit `r` warte; exakti Azahle 3/4/8 und Markierige prüefe |
+| `scenario` | e nöie Durchlouf erzeuge; sibe Zeile, Vorher-Bilder und vier gemeinsami T1-txIds abgliche |
+| `bulk` | Bulk-Zeile vom Durchlouf prüefe; Bulk aktualisiere, uf e erfassti Markierig warte und Bulk-Envelope zrüggwyse |
+| `outage-short` | Empfänger 10 Sekunde stoppe; Szenario erzeuge; Empfänger starte; Zuestellig bi laufendem Debezium abwarte |
+| `outage-long` | Empfänger bis zum Engine-Fähler stoppe; Empfänger wiederherstelle; Debezium ausdrücklich nöi starte; Rückstand la abarbeite |
+| `restart` | vor und nach em Neustart e Durchlouf erzeuge; erhalteni Zeile und unveränderti Snapshot-Azahl prüefe |
 
 
 ```sh
@@ -334,36 +334,36 @@ python3 verify/verify.py outage-long
 python3 verify/verify.py restart
 python3 verify/verify.py all
 ```
-`scenario --run-id` **erzeugt** den angegebenen Durchlauf; der Befehl liest nicht bloss
-einen vorhandenen manuellen Durchlauf ein. `bulk --run-id` liest die Erwartungen eines
-vorhandenen Durchlaufs und ergänzt eigene Diagnose-Updates. `all` erstellt eine
-Szenario-ID und übergibt sie an `bulk`. Jeder Aufruf schreibt einen Bericht mit Zeitstempel
-im JSON-Format und endet bei Erfolg mit 0, bei einem Fehler mit 1. Vor dem nächsten Versuch einer fehlgeschlagenen Prüfung
-den benannten Bericht lesen.
+`scenario --run-id` **erzeugt** dr agäbeni Durchlouf; dr Befähl liist nid nume
+e vorhandene manuelle Durchlouf ii. `bulk --run-id` liist d Erwartige vo mene
+vorhandene Durchlouf und ergänzt eigeti Diagnose-Updates. `all` erstellt e
+Szenario-ID und übergit sie a `bulk`. Jede Ufruef schrybt e Bericht mit Zytstämpfel
+im JSON-Format und endet bi Erfolg mit 0, bi mene Fähler mit 1. Vor em nächste Versuech vo nere fählgschlagene Prüefig
+dr benannt Bericht läse.
 
-Der Abgleich verwendet erwartete Schlüssel und Teilmengen der Vorher-/Nachher-Werte aus dem
-Generator; die Erwartungen werden nicht anhand der beobachteten Zustellung rekonstruiert.
-Duplikatberichte verwenden Quell-LSN, Schema, Tabelle, Operation und Zeilen-ID. Sie sind
-Beobachtungen und kein Dienst zur Duplikatunterdrückung bei der Zustellung. Einige Prüfungen
-melden Duplikate, ohne fehlzuschlagen; `scenario` verlangt zusätzlich genau vier passende
-T1-Ereignisse. Ein PASS ist keine Garantie für Exactly-once-Zustellung.
+Dr Abglich verwendet erwarteti Schlüssel und Teilmängine vo de Vorher-/Nachher-Wärt us em
+Generator; d Erwartige werde nid anhand vo dr beobachtete Zuestellig rekonstruiert.
+Duplikatbericht verwände Quell-LSN, Schema, Tabelle, Operation und Zeile-ID. Sie si
+Beobachtige und ke Dienst zur Duplikatunterdrückig bi dr Zuestellig. Einigi Prüefige
+mälde Duplikat, ohni fählzschlah; `scenario` verlangt zuesätzlech genau vier passendi
+T1-Ereignis. Es PASS isch ke Garantie für Exactly-once-Zuestellig.
 
-## Verhalten bei Ausfällen und ausdrückliche Wiederherstellung
+## Verhalte bi Usfäll und ausdrücklechi Wiederherstellig
 
-Das HTTP-Sink-Timeout beträgt 5000 ms, die Anzahl der Wiederholungen 10 und das Intervall
-zwischen Wiederholungen 3000 ms. Das Retry-Budget ist begrenzt. Verbindungsablehnungen und
-Timeouts verbrauchen unterschiedlich viel Zeit; aus diesen Einstellungen ergibt sich daher
-keine einheitliche garantierte Ausfalldauer. Als Nachweis dienen die Laufzeit, die Anzahl der
-Sendeversuche und die Logs des Verifiers.
+Ds HTTP-Sink-Timeout beträgt 5000 ms, d Azahl vo Wiederholige 10 und ds Intervall
+zwüsche de Wiederholige 3000 ms. Ds Retry-Budget isch begränzt. Verbindigsablehnige und
+Timeouts bruuche unterschiedlech viu Zyt; us dene Iistellige ergit sich drum
+ke einheitlechi garantierte Usfallduur. Als Nachwys diene d Laufzyt, d Azahl vo de
+Sändeversuech und d Logs vom Verifier.
 
-Im festgelegten, beobachteten Stack beendet das Ausschöpfen der Wiederholungen die
-eingebettete Engine, während der Container weiterläuft. `/q/health` liefert HTTP 503/DOWN,
-und Compose markiert den Container nach einiger Zeit als fehlerhaft. Es ist keine
-Restart-Policy konfiguriert. Ein laufender Container allein belegt deshalb nicht, dass die
-Erfassung funktioniert.
+Im feschtgleite, beobachtete Stack beendet ds Usschöpfe vo de Wiederholige d
+iibetteti Engine, während dr Container wyterlouft. `/q/health` liefert HTTP 503/DOWN,
+und Compose markiert dr Container nach ere gwüsse Zyt als fählerhaft. Es isch ke
+Restart-Policy konfiguriert. E laufende Container allei belegt drum nid, dass d
+Erfassig funktioniert.
 
-Den Empfänger wiederherstellen und Debezium neu starten, damit die Engine erneut
-geöffnet wird:
+Dr Empfänger wiederherstelle und Debezium nöi starte, damit d Engine wieder
+öffnet wird:
 
 ```sh
 docker compose start receiver
@@ -373,22 +373,22 @@ make health
 make ps
 docker compose logs --tail=100 debezium
 ```
-`docker compose start debezium` startet keinen bereits laufenden, fehlerhaften Container
-neu. Ein kurzer Ausfall kann sich durch die Sink-Wiederholungen erholen; nach dem oben
-beschriebenen Ausschöpfen des Retry-Budgets ist ein ausdrücklicher Neustart erforderlich.
-Zu den bisherigen Beobachtungen gehören Engine-Fehlermeldungen mit
-`Exceeded maximum number of attempts` und `Engine has failed`. Anzahl der Versuche und
-Wiederherstellungszeit hängen vom jeweiligen Durchlauf ab.
+`docker compose start debezium` startet ke bereits laufende, fählerhafte Container
+nöi. E churze Usfall cha sich dür d Sink-Wiederholige erhole; nach em obe
+beschribene Usschöpfe vom Retry-Budget isch e ausdrückleche Neustart nötig.
+Zu de bisherige Beobachtige ghöre Engine-Fählermäldige mit
+`Exceeded maximum number of attempts` und `Engine has failed`. D Azahl vo de Versuech und
+d Wiederherstelligszyt hänge vom jeweilige Durchlouf ab.
 
-## Logs ohne jq untersuchen
+## Logs ohni jq untersueche
 
-Das letzte Envelope mit der Python-Standardbibliothek formatiert ausgeben:
+Ds letschte Envelope mit dr Python-Standardbibliothek formatiert usgä:
 
 
 ```sh
 tail -n 1 logs/events.jsonl | python3 -m json.tool
 ```
-Operationen und Tabellen zählen und das letzte Event-Receipt ausgeben:
+Operatione und Tabelle zelle und ds letschte Event-Receipt usgä:
 
 
 ```sh
@@ -412,27 +412,27 @@ if receipts.exists():
         print(json.dumps(events[-1], indent=2))
 PYCODE
 ```
-Diese Befehle bei ruhenden Logs ausführen oder nach einem
-gleichzeitigen Schreibvorgang an der letzten Zeile wiederholen; der Verifier selbst toleriert eine
-unvollständige letzte JSONL-Zeile. Während der Abnahme keine Test-JSON per POST senden
-an `/events`: Jedes gültige JSON-Objekt wird zu einer Zustellzeile und kann die Annahmen
-des Verifiers ungültig machen.
+Die Befähl bi ruhende Logs usfüehre oder nach emene
+glychzytige Schreibvorgang a dr letschte Zeile wiederhole; dr Verifier sälber toleriert e
+unvollständigi letschti JSONL-Zeile. Während dr Abnahme ke Test-JSON per POST schicke
+a `/events`: Jedes gültige JSON-Objekt wird zu nere Zuestellzeile und cha d Aanahme
+vom Verifier ungültig mache.
 
-## Fehlerbehebung und zurückgehaltenes WAL
+## Fählerbehebig und zrüggbhaltets WAL
 
-| Symptom | Erste Prüfungen und Bedeutung |
+| Symptom | Erschti Prüefige und Bedeutig |
 |---|---|
-| Port bereits belegt | Host-Listener prüfen; die oben beschriebenen zusammengehörigen Port-Literale ändern |
-| Empfänger fehlerhaft oder HTTP 500 | UID/GID, Berechtigungen des Bind-Verzeichnisses, freien Speicher und `logs/receiver.log` prüfen |
-| Debezium läuft, ist aber fehlerhaft | Debezium-Logs und `/q/health` prüfen; nach erschöpftem Sink-Retry `make recover` ausführen |
-| Ereignisse im Szenario fehlen | Abweichungen im Bericht, Schreibvorgänge des Empfängers, Connector-Health und Capture-Allowlists prüfen |
-| Bei Update/Delete fehlen alte Felder | Replica Identity in der tatsächlich beibehaltenen Datenbank prüfen |
-| Unerwartete Snapshot-Anzahl | Volumes, alte Logs und separat entfernte Offsets prüfen |
-| Generator weist ID zurück | eine neue gültige ID verwenden; bisherige Run-Belege aufbewahren, statt sie zu überschreiben |
-| Seed-/Schema-Änderung scheint ignoriert | Init-Skripte laufen nur bei einem leeren PostgreSQL-Daten-Volume |
+| Port scho belegt | Host-Listener prüefe; d obe beschribene zämeghörige Port-Literale ändere |
+| Empfänger fählerhaft oder HTTP 500 | UID/GID, Berechtigunge vom Bind-Verzeichnis, freie Speicher und `logs/receiver.log` prüefe |
+| Debezium louft, isch aber fählerhaft | Debezium-Logs und `/q/health` prüefe; nach usgschöpftem Sink-Retry `make recover` usfüehre |
+| Ereignis im Szenario fähle | Abwychige im Bericht, Schreibvorgäng vom Empfänger, Connector-Health und Capture-Allowlists prüefe |
+| Bi Update/Delete fähle alti Fälder | Replica Identity i dr tatsächlich bhaltene Datebank prüefe |
+| Unerwarteti Snapshot-Azahl | Volumes, alti Logs und separat entfernti Offsets prüefe |
+| Generator wyst ID zrügg | e nöii gültigi ID verwände; bisherigi Run-Beleg ufbewahre, statt sie z überschrybe |
+| Seed-/Schema-Änderig schynt ignoriert | Init-Scripts loufe nume bi mene lääre PostgreSQL-Date-Volume |
 
-Die Mitgliedschaft der Publication, die Replica Identity und den Fortschritt des
-Slots prüfen:
+D Mitgliedschaft vo dr Publication, d Replica Identity und dr Fortschritt vom
+Slot prüefe:
 
 ```sh
 docker compose exec -T postgres psql -U dbz -d appdb <<'SQL'
@@ -446,31 +446,31 @@ SELECT slot_name, plugin, active, restart_lsn, confirmed_flush_lsn,
 FROM pg_replication_slots;
 SQL
 ```
-Replica Identity `f` bedeutet FULL. Solange der Verbraucher ausgefallen oder blockiert ist,
-kann der Slot WAL zurückhalten und den PostgreSQL-Speicher füllen. Das
-zurückgehaltene WAL und den Speicherplatz überwachen; dieser Versuchsaufbau konfiguriert weder eine operative
-Grenze für die WAL-Aufbewahrung noch Warnmeldungen dazu. Den Slot oder die
-Offsets nicht als routinemässige Wiederherstellungsmassnahme löschen: Dadurch kann benötigter
-Änderungsverlauf verloren gehen und ein erneuter Snapshot erzwungen werden. Zuerst
-die Zustellung wiederherstellen und anschliessend den Slot-Fortschritt sowie
-den Abbau des Rückstands prüfen. Bei vollem Speicher ist ein geplanter Datenbank-Wiederherstellungsplan
-erforderlich; wiederholte blinde Neustarts reichen nicht aus.
+Replica Identity `f` bedeutet FULL. Solang dr Verbraucher usgfalle oder blockiert isch,
+cha dr Slot WAL zrüggbhalte und dr PostgreSQL-Speicher fülle. Ds
+zrüggbhaltene WAL und dr Speicherplatz überwache; dä Versuechsufbau konfiguriert weder e operativi
+Gränze für d WAL-Ufbewahrig no Warnmäldige derzue. Dr Slot oder d
+Offsets nid als routinemässigi Wiederherstelligsmassnahm lösche: Dadür cha benötigte
+Änderigsverlouf verlore gah und e erneute Snapshot erzwunge werde. Zersch
+d Zuestellig wiederherstelle und dernah dr Slot-Fortschritt sowie
+dr Abbau vom Rückstand prüefe. Bi vollem Speicher isch e plante Datebank-Wiederherstelligsplan
+nötig; wiederholti blindi Neustarts länge nid.
 
-## Auswirkungen auf den Produktivbetrieb
+## Uswirkige uf dr Produktivbetrieb
 
-Dieser Empfänger bietet weder Authentifizierung noch eine Begrenzung der Request-Grösse,
-fachliche Validierung, Log-Rotation oder Duplikatunterdrückung. Zudem liest er jeden
-Request-Body vollständig in den Arbeitsspeicher. Die Append-Datei ist ein Nachweis und keine
-Warteschlange zur Verarbeitung von Geschäftsdaten. Vor einer solchen Verwendung Aufbewahrung, Backups und
-Bestätigungssemantik nachgelagerter Systeme planen.
-Benannte Volumes und Bind-Mounts sind persistenter Speicher, aber keine Backups.
+Dä Empfänger bietet weder Authentifizierig no e Begränzig vo dr Request-Grössi,
+fachlechi Validierig, Log-Rotation oder Duplikatunterdrückig. Zuesätzlech liist er jede
+Request-Body vollständig i dr Arbeitsspeicher. D Append-Datei isch e Nachwys und ke
+Warteschlange zur Verarbeitig vo Gschäftsdate. Vor so nere Verwendig d Ufbewahrig, Backups und
+d Bestätigungssemantik vo nachglagerete Systeme plane.
+Benannti Volumes und Bind-Mounts si persistente Speicher, aber ke Backups.
 
-Für den Produktivbetrieb braucht es begrenzte Datenbankberechtigungen, abgesicherten und
-authentifizierten Transport, Zugangsdatenverwaltung, Überwachung von WAL und Slots,
-Speicherkapazität und Log-Aufbewahrung. Ebenso ist eine durchdachte Strategie für
-Duplikatbehandlung, Transaktionen, Schemaänderungen und Ausfälle nötig, die länger als das
-begrenzte Sink-Retry-Budget dauern.
-Lokale Zustellzeiten verwenden Quellzeitstempel und Receipt-Zeitstempel nach bestem Bemühen;
-sie hängen von den Uhren und der Zuordnung der Receipts ab. Es sind Beobachtungen und kein
-SLA. Erfolgreiche Durchläufe des Versuchsaufbaus liefern Anhaltspunkte für diesen Entwurf, ersetzen
-ihn aber nicht.
+Für dr Produktivbetrieb bruucht es begränzti Datebankberechtigunge, abgsicherete und
+authentifizierte Transport, Zuegangsdateverwaltig, Überwachig vo WAL und Slots,
+Speicherkapazität und Log-Ufbewahrig. Es bruucht o e dürdachti Strategie für
+d Duplikatbehandlig, Transaktione, Schemaänderige und Usfäll, wo länger duure als ds
+begränzte Sink-Retry-Budget.
+Lokali Zuestellzyte verwände Quellzytstämpfel und Receipt-Zytstämpfel nach beschtem Bemühe;
+sie hänge vo de Uhre und dr Zueordnig vo de Receipts ab. Das si Beobachtige und ke
+SLA. Erfolgrichi Durchlöuf vom Versuechsufbau liefere Aahaltspünkt für dä Entwurf, ersetze
+ihne aber nid.

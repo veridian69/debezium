@@ -1,11 +1,11 @@
 # Operator Guide: PostgreSQL → Debezium Server → HTTP-Empfänger
 
-[English version](operator-guide-en.md)
+[English version](operator-guide-en.md) | [Schweizerdeutsch](operator-guide-sg.md)
 
 Dieser Operator Guide erklärt, wie der Versuchsaufbau läuft, was er prüft und wo seine Grenzen liegen.
 Alle Befehle im Stammverzeichnis des Repositorys ausführen; die Pfade unten sind relativ dazu.
 Für Oracle Linux 8 mit Docker CE und ohne Internetzugang beschreibt der folgende Leitfaden
-die Vorbereitung, den Image-Transfer, die Installation und die hostspezifischen Prüfungen: [Leitfaden zur Offline-Bereitstellung](oracle-linux-8-offline.md).
+die Vorbereitung, den Image-Transfer, die Installation und die hostspezifischen Prüfungen: [Leitfaden zur Offline-Bereitstellung](oracle-linux-8-offline-de.md).
 Die Vorbereitung erfolgt auf der mit dem Internet verbundenen Ubuntu-VM auf dem Laptop;
 auf dem OL8-Ziel ist SELinux nicht aktiviert. Dieser Leitfaden beschreibt
 das Anwendungsverhalten unabhängig von der Host-Distribution.

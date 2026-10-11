@@ -1,11 +1,11 @@
 # Debezium Server Versuchsaufbau
 
-[English](README-en.md)
+[English](README-en.md) | [Schweizerdeutsch](README-sg.md)
 
 Die Details:
 
-- [Operator Guide](docs/operator-guide.md)
-- [Offline Installation auf Oracle Linux 8](docs/oracle-linux-8-offline.md)
+- [Operator Guide](docs/operator-guide-de.md)
+- [Offline Installation auf Oracle Linux 8](docs/oracle-linux-8-offline-de.md)
 - [Entwicklerleitfaden für Cyrille](docs/entwicklerleitfaden-de.md)
 
 ## Zweck
