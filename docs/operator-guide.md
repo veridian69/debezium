@@ -1,33 +1,37 @@
-# Operator guide: PostgreSQL → Debezium Server → HTTP receiver
+# Betriebsleitfaden: PostgreSQL → Debezium Server → HTTP-Empfänger
 
-This is the engineer-facing guide for running and understanding this proof.
-Run commands from the repository root; paths below are relative to it.
-For the Oracle Linux 8 target with Docker CE and no internet access, use
-[the offline deployment guide](oracle-linux-8-offline.md) for preparation,
-image transfer, installation and host-specific checks. Preparation happens on
-the internet-connected Ubuntu VM on the laptop; the OL8 target has no SELinux.
-This guide describes
-application behaviour independently of the host distribution.
+[English version](operator-guide-en.md)
 
-## What the proof establishes
+Dieser Leitfaden richtet sich an Entwicklerinnen und Entwickler, die diesen Proof of Concept betreiben und verstehen möchten.
+Führen Sie die Befehle im Stammverzeichnis des Repositorys aus; die unten angegebenen Pfade sind relativ dazu.
+Für das Zielsystem Oracle Linux 8 mit Docker CE und ohne Internetzugang verwenden Sie zur Vorbereitung,
+zum Image-Transfer, zur Installation und für hostspezifische Prüfungen
+den [Leitfaden zur Offline-Bereitstellung](oracle-linux-8-offline.md).
+Die Vorbereitung erfolgt auf der mit dem Internet verbundenen Ubuntu-VM auf dem Laptop;
+auf dem OL8-Ziel ist SELinux nicht aktiviert. Dieser Leitfaden beschreibt
+das Anwendungsverhalten unabhängig von der Host-Distribution.
 
-An external writer changes relational PostgreSQL rows. Debezium captures the
-time-critical strand and sends individual change envelopes to a Java HTTP
-receiver. The receiver stands in for an Integration Broker REST service; it
-records deliveries rather than running PeopleCode or processing business entities.
-The separate `bulk` strand remains in PostgreSQL for hypothetical scheduled
-processing. Oracle, database links, App Engine and PeopleSoft are outside this stack.
+## Was der Proof belegt
 
-There is no Kafka, queue service or entity aggregation layer. A customer,
-order and two order items inserted in one transaction produce four row events.
-They are not turned into one order message. This matters when evaluating the
-amount of downstream transaction handling a real integration would need.
+Ein externes Schreibsystem ändert relationale Zeilen in PostgreSQL. Debezium erfasst den
+zeitkritischen Datenstrang und sendet einzelne Änderungs-Envelope an einen Java-HTTP-
+Empfänger. Der Empfänger dient als Ersatz für einen REST-Dienst des Integration Broker;
+er protokolliert Zustellungen, statt PeopleCode auszuführen oder Geschäftsobjekte zu verarbeiten.
+Der separate `bulk`-Datenstrang verbleibt in PostgreSQL und ist für eine hypothetische
+zeitgesteuerte Verarbeitung vorgesehen. Oracle, Datenbank-Links, App Engine und PeopleSoft
+gehören nicht zu diesem Stack.
 
-The proof tests initial capture, filtering, before/after values, finite HTTP
-retry behaviour and restart persistence. It does not establish throughput,
-production latency, exactly-once delivery or production availability.
+Es gibt weder Kafka noch einen Warteschlangendienst oder eine Ebene zur Aggregation von
+Geschäftsobjekten. Werden ein Kunde, eine Bestellung und zwei Bestellpositionen in einer
+Transaktion eingefügt, entstehen vier Zeilenereignisse. Sie werden nicht zu einer einzelnen
+Bestellnachricht zusammengefasst. Das ist relevant, wenn Sie den Umfang der nachgelagerten
+Transaktionsverarbeitung für eine echte Integration bewerten.
 
-## Components and addresses
+Der Proof prüft die initiale Erfassung, Filterung, Vorher-/Nachher-Werte, das begrenzte
+HTTP-Wiederholungsverhalten und den Erhalt des Zustands nach einem Neustart. Er belegt weder
+Durchsatz noch produktionsnahe Latenz, Exactly-once-Zustellung oder Verfügbarkeit im Produktivbetrieb.
+
+## Komponenten und Adressen
 
 ```text
 generator (manual psql scenario)
@@ -39,141 +43,149 @@ generator (manual psql scenario)
                                       logs/receiver.log
 host verifier ── reads logs/runs, queries PostgreSQL, controls Compose
 ```
-
-| Component | Container-side address | Default host address |
+| Komponente | Adresse innerhalb des Containers | Standardadresse auf dem Host |
 |---|---|---|
 | PostgreSQL | `postgres:5432` | `127.0.0.1:5432` |
-| Receiver | `receiver:8080/events` | `http://127.0.0.1:8080/events` |
-| Receiver health | `receiver:8080/health` | `http://127.0.0.1:8080/health` |
-| Debezium health | port 8080 in Debezium | `http://127.0.0.1:8081/q/health` |
+| Empfänger | `receiver:8080/events` | `http://127.0.0.1:8080/events` |
+| Health-Endpunkt des Empfängers | `receiver:8080/health` | `http://127.0.0.1:8080/health` |
+| Debezium-Health-Endpunkt | Port 8080 in Debezium | `http://127.0.0.1:8081/q/health` |
 
-Compose project name is `dbzproof`. Services are `postgres`, `receiver`,
-`debezium` and `generator`; the generator uses profile `tools` and does not
-run as part of ordinary startup. Published ports bind only to loopback.
-Inside Compose, use service names, not the host's loopback addresses.
+Der Name des Compose-Projekts lautet `dbzproof`. Die Dienste heissen `postgres`, `receiver`,
+`debezium` und `generator`; der Generator verwendet das Profil `tools` und wird beim normalen
+Start nicht ausgeführt. Veröffentlichte Ports sind ausschliesslich an Loopback gebunden.
+Verwenden Sie innerhalb von Compose die Dienstnamen und nicht die Loopback-Adressen des Hosts.
 
-The checked-in `.env` pins PostgreSQL `18.6-alpine`, Debezium Server
-`3.7.0.Final`, Maven `3.10.0-eclipse-temurin-25-alpine` and the receiver's
-Temurin JRE `25.0.4_7-jre-alpine`. The receiver build is containerised;
-host Java and Maven are unnecessary. Debezium uses its own image runtime.
-Use `.env` as the version source when preparing a deployment bundle.
+Die eingecheckte `.env` legt PostgreSQL `18.6-alpine`, Debezium Server
+`3.7.0.Final`, Maven `3.10.0-eclipse-temurin-25-alpine` und die Temurin-JRE des Empfängers
+`25.0.4_7-jre-alpine` fest. Das Image des Empfängers wird im Container gebaut;
+Java und Maven auf dem Host sind nicht erforderlich. Debezium verwendet die Laufzeit seiner
+eigenen Images. Verwenden Sie `.env` als Quelle der Versionsangaben, wenn Sie ein
+Bereitstellungspaket vorbereiten.
 
-## Prerequisites and configuration coupling
+## Voraussetzungen und gekoppelte Konfiguration
 
-The host needs Docker CE, the Docker Compose plugin, Bash, Make, curl and
-Python 3.12 for the documented verification environment. The verifier uses
-Python's standard library only: no pip environment or jq dependency is needed.
-It also invokes Docker Compose and `tail`. The generator uses psql from the
-PostgreSQL image; host psql is optional.
+Für die dokumentierte Verifizierungsumgebung benötigt der Host Docker CE, das Docker-Compose-
+Plugin, Bash, Make, curl und Python 3.12. Der Verifizierer verwendet ausschliesslich die
+Python-Standardbibliothek; eine pip-Umgebung und jq sind nicht erforderlich. Ausserdem ruft
+er Docker Compose und `tail` auf. Der Generator verwendet psql aus dem PostgreSQL-Image;
+psql auf dem Host ist optional.
 
-Credentials are `dbz` / `dbz`, database `appdb`. These are demonstration
-superuser credentials, and receiver traffic is plain HTTP without authentication.
-Do not expose these services by changing loopback bindings casually.
+Die Zugangsdaten lauten `dbz` / `dbz`, die Datenbank heisst `appdb`. Es handelt sich um
+Superuser-Zugangsdaten für die Demonstration; der Netzwerkverkehr zum Empfänger verwendet
+unverschlüsseltes HTTP ohne Authentifizierung. Machen Sie diese Dienste nicht beiläufig
+durch Änderungen an den Loopback-Bindings erreichbar.
 
-`.env` does **not** configure every consumer of ports and credentials:
+`.env` konfiguriert **nicht** alle Stellen, an denen Ports und Zugangsdaten verwendet werden:
 
-- `compose.yaml` reads the host ports and PostgreSQL credentials from `.env`.
-- `debezium/application.properties` contains literal `dbz`, `dbz`, `appdb`.
-- `verify/verify.py` contains literal host URLs on ports 8080 and 8081, and
-  literal database user/database names `dbz` and `appdb` in its psql wrapper.
-- `Makefile` health URLs, `psql` and `seed` also contain those literals.
+- `compose.yaml` liest die Host-Ports und PostgreSQL-Zugangsdaten aus `.env`.
+- `debezium/application.properties` enthält die Literale `dbz`, `dbz`, `appdb`.
+- `verify/verify.py` enthält fest eingetragene Host-URLs auf den Ports 8080 und 8081 sowie
+  in seinem psql-Wrapper die fest eingetragenen Datenbank-Benutzernamen und -Datenbanknamen `dbz` und `appdb`.
+- Die Health-URLs, `psql` und `seed` im `Makefile` enthalten diese Literale ebenfalls.
 
-Change these together if moving ports or credentials. Existing PostgreSQL
-volumes retain their original users and database; changing `POSTGRES_*`
-environment variables does not reinitialise them. Plan the database change
-explicitly rather than expecting an environment edit to migrate it.
+Passen Sie diese Stellen gemeinsam an, wenn Sie Ports oder Zugangsdaten ändern. Bestehende
+PostgreSQL-Volumes behalten ihre ursprünglichen Benutzer und Datenbanken; Änderungen an
+`POSTGRES_*`-Umgebungsvariablen initialisieren sie nicht neu. Planen Sie die Änderung der
+Datenbank ausdrücklich, statt davon auszugehen, dass eine Anpassung der Umgebung sie migriert.
 
-The receiver and generator run as `HOST_UID:HOST_GID` from `.env` (default
-1000:1000). Check `id -u` and `id -g` on the target and set them appropriately
-before startup. Host directories `logs/` and `runs/` must be writable by that
-identity. Image-directory permissions do not override bind-mount permissions.
+Empfänger und Generator laufen mit `HOST_UID:HOST_GID` aus `.env` (Standardwert
+1000:1000). Prüfen Sie auf dem Zielsystem `id -u` und `id -g` und setzen Sie die Werte vor
+dem Start passend. Die Host-Verzeichnisse `logs/` und `runs/` müssen für diese Identität
+beschreibbar sein. Berechtigungen des Image-Verzeichnisses setzen die Berechtigungen eines
+Bind-Mounts nicht ausser Kraft.
 
-## PostgreSQL capture mechanics
+## Erfassungsmechanik von PostgreSQL
 
-PostgreSQL starts with `wal_level=logical`, `max_wal_senders=10` and
-`max_replication_slots=10`. WAL records database changes; `pgoutput` provides
-the logical replication stream consumed by Debezium.
-The named logical slot `dbz_slot` keeps the stream position and retains WAL
-needed by its consumer. The named publication `dbz_publication` selects tables.
-A publication is a selection rule; it is not a delivery queue.
+PostgreSQL startet mit `wal_level=logical`, `max_wal_senders=10` und
+`max_replication_slots=10`. WAL protokolliert Datenbankänderungen; `pgoutput` stellt den
+von Debezium konsumierten logischen Replikationsstrom bereit.
+Der benannte logische Slot `dbz_slot` hält die Position im Strom fest und bewahrt das von
+seinem Verbraucher benötigte WAL auf. Die benannte Publication `dbz_publication` wählt die
+Tabellen aus. Eine Publication ist eine Auswahlregel und keine Zustellwarteschlange.
 
-Initial SQL creates these captured tables:
+Das initiale SQL legt die folgenden Tabellen für die Erfassung an:
 
-| Table | Relationship | Seed rows |
+| Tabelle | Beziehung | Seed-Zeilen |
 |---|---|---:|
-| `timecritical.customers` | customer identity and contact fields | 3 |
-| `timecritical.orders` | foreign key to customer | 4 |
-| `timecritical.order_items` | foreign key to order | 8 |
+| `timecritical.customers` | Kundenidentität und Kontaktfelder | 3 |
+| `timecritical.orders` | Fremdschlüssel zum Kunden | 4 |
+| `timecritical.order_items` | Fremdschlüssel zur Bestellung | 8 |
 
-All have identity-generated bigint primary key `id`. Money uses integer cents.
-The separate tables `bulk.batch_jobs` and `bulk.pending_records` have seeded
-rows too, but neither is captured. The latter references the former.
+Alle Tabellen besitzen den identity-generierten bigint-Primärschlüssel `id`. Geldbeträge
+werden als ganzzahlige Cent-Beträge gespeichert. Auch die separaten Tabellen
+`bulk.batch_jobs` und `bulk.pending_records` enthalten Seed-Zeilen, werden aber nicht
+erfasst. Die zweite Tabelle verweist auf die erste.
 
-`postgres/init/30-replication.sql` creates the publication for exactly the
-three time-critical tables. The connector also sets a schema allowlist and
-an explicit table allowlist in `debezium/application.properties`. Both layers
-should agree. A new table is not captured merely because it exists in the schema.
-Publication autocreation is `filtered`, so Debezium can create a filtered
-publication if it is absent; the normal first start uses the SQL-created one.
+`postgres/init/30-replication.sql` erstellt die Publication genau für die drei
+zeitkritischen Tabellen. Der Connector legt in `debezium/application.properties` ausserdem
+eine Schema-Allowlist und eine explizite Tabellen-Allowlist fest. Beide Ebenen sollten
+übereinstimmen. Eine neue Tabelle wird nicht allein dadurch erfasst, dass sie im Schema
+vorhanden ist. Die automatische Erstellung der Publication steht auf `filtered`, damit
+Debezium bei Bedarf eine gefilterte Publication erstellen kann; beim normalen ersten Start
+wird die mit SQL erstellte Publication verwendet.
 
-`REPLICA IDENTITY FULL` is set on all three captured tables. It makes old row
-values available for updates and deletes, enabling the verifier to check
-changed values in `before`. A primary key alone identifies a row but does not
-provide the full old row image needed by this proof. FULL adds replication
-work and data volume; assess that cost for real tables.
+Für alle drei erfassten Tabellen ist `REPLICA IDENTITY FULL` gesetzt. Dadurch stehen bei
+Updates und Deletes die alten Zeilenwerte zur Verfügung, sodass der Verifizierer geänderte
+Werte in `before` prüfen kann. Ein Primärschlüssel identifiziert zwar eine Zeile, liefert
+aber nicht das vollständige alte Zeilenabbild, das dieser Proof benötigt. FULL erhöht den
+Replikationsaufwand und das Datenvolumen; bewerten Sie diese Kosten für echte Tabellen.
 
-Init scripts run only when PostgreSQL initialises an empty data volume.
-Editing schema or replication SQL and restarting an existing database does
-not apply those edits. Use deliberate migration SQL for retained data, or a
-complete reset for a disposable reproduction.
+Init-Skripte werden nur ausgeführt, wenn PostgreSQL ein leeres Daten-Volume initialisiert.
+Änderungen am Schema oder an Replikations-SQL werden nicht übernommen, wenn Sie eine
+bestehende Datenbank neu starten. Verwenden Sie für beibehaltene Daten gezielte
+Migrations-SQL oder setzen Sie eine nur für die Reproduktion verwendete Umgebung vollständig zurück.
 
-## Initial snapshot and streaming
+## Initialer Snapshot und Streaming
 
-`snapshot.mode=initial` means a connector without saved state first reads
-existing captured rows, then continues with WAL changes. Seed SQL executes
-before Debezium starts, so a clean first start yields 15 `op=r` envelopes.
-Expected counts live in `postgres/expected_snapshot.json`.
+`snapshot.mode=initial` bedeutet: Ein Connector ohne gespeicherten Zustand liest zuerst
+die bereits vorhandenen erfassten Zeilen und verarbeitet anschliessend WAL-Änderungen weiter.
+Das Seed-SQL wird vor dem Start von Debezium ausgeführt. Ein sauberer erster Start liefert
+daher 15 `op=r`-Envelope. Die erwarteten Anzahlen stehen in `postgres/expected_snapshot.json`.
 
-Snapshot markers are not confined to the string `true`. The verifier accepts
-`true`, `first`, `last`, `first_in_data_collection` and
-`last_in_data_collection` in `source.snapshot`. Streaming events normally
-carry the string `false`. Inspect actual data rather than converting these
-strings to boolean by truthiness.
+Snapshot-Markierungen sind nicht auf die Zeichenfolge `true` beschränkt. Der Verifizierer
+akzeptiert in `source.snapshot` die Werte `true`, `first`, `last`,
+`first_in_data_collection` und `last_in_data_collection`. Streaming-Ereignisse enthalten
+normalerweise die Zeichenfolge `false`. Prüfen Sie die tatsächlichen Daten, statt diese
+Zeichenfolgen anhand ihres Wahrheitswerts in Booleans umzuwandeln.
 
-Offsets are stored at `/debezium/data/offsets.dat` in the named volume
-`dbzproof_debezium_data`. The configured offset flush interval is 0.
-An ordinary restart retains this state and should resume without a new snapshot.
-The verifier tests that behaviour; an offset setting alone is not proof.
-Deleting offsets while retaining a populated database can produce a new
-snapshot of all current captured rows, not the original 15-row seed fixture.
+Offsets werden unter `/debezium/data/offsets.dat` im benannten Volume
+`dbzproof_debezium_data` gespeichert. Das konfigurierte Intervall zum Schreiben der Offsets
+beträgt 0. Bei einem normalen Neustart bleibt dieser Zustand erhalten; der Connector sollte
+ohne neuen Snapshot fortfahren. Der Verifizierer prüft dieses Verhalten; eine Offset-
+Einstellung allein ist kein Nachweis. Werden Offsets gelöscht, während eine befüllte
+Datenbank erhalten bleibt, kann ein neuer Snapshot aller aktuell erfassten Zeilen entstehen
+anstelle der ursprünglichen Seed-Fixture mit 15 Zeilen.
 
-## Reading an envelope
+## Ein Envelope lesen
 
-Key/value JSON schema metadata is disabled. An event is the envelope itself,
-without an outer `schema`/`payload` wrapper. HTTP batching is disabled.
-The receiver compacts JSON whitespace into one line but preserves its fields
-and values; it does not strip metadata, unwrap rows or assemble entities.
+Die JSON-Schema-Metadaten für Schlüssel und Werte sind deaktiviert. Ein Ereignis ist selbst
+das Envelope und hat keinen äusseren `schema`/`payload`-Wrapper. HTTP-Batching ist deaktiviert.
+Der Empfänger entfernt überflüssige JSON-Leerzeichen und schreibt das JSON in eine Zeile,
+behält dabei aber Felder und Werte bei; er entfernt keine Metadaten, packt Zeilen nicht aus
+und setzt keine Geschäftsobjekte zusammen.
 
-| Field | Meaning in this proof |
+| Feld | Bedeutung in diesem Proof |
 |---|---|
-| `op` | `r` snapshot read, `c` create, `u` update, `d` delete |
-| `before` | old row for update/delete; null for create/snapshot |
-| `after` | new/current row; null for delete |
-| `source.schema`, `source.table` | originating relation |
-| `source.lsn` | PostgreSQL source position used in duplicate reporting |
-| `source.txId` | PostgreSQL transaction ID; shared by the four T1 inserts |
-| `source.snapshot` | snapshot marker string |
-| `source.ts_ms` | source timestamp used for local timing observations |
-| `ts_ms`, `ts_us`, `ts_ns` | available connector processing timestamps |
-| `transaction` | nullable transaction metadata; may be null here |
+| `op` | `r` Snapshot-Lesevorgang, `c` Anlegen, `u` Aktualisieren, `d` Löschen |
+| `before` | alte Zeile bei Update/Delete; bei Create/Snapshot null |
+| `after` | neue bzw. aktuelle Zeile; bei Delete null |
+| `source.schema`, `source.table` | Ursprungsrelation |
+| `source.lsn` | PostgreSQL-Quellposition für die Duplikatmeldung |
+| `source.txId` | PostgreSQL-Transaktions-ID; bei den vier T1-Insert-Operationen gemeinsam |
+| `source.snapshot` | Snapshot-Markierungszeichenfolge |
+| `source.ts_ms` | Quellzeitstempel für lokale Zeitmessungen |
+| `ts_ms`, `ts_us`, `ts_ns` | verfügbare Verarbeitungszeitstempel des Connectors |
+| `transaction` | nullable Transaktionsmetadaten; kann hier null sein |
 
-`source.txId` and top-level `transaction` are different fields. The scenario
-uses the former to show common transaction membership; it does not require
-non-null top-level transaction metadata or prove transaction-atomic HTTP delivery.
-A receiver sees separate requests and must not assume all members arrive together.
+`source.txId` und das oberste Feld `transaction` sind unterschiedliche Felder. Das Szenario
+verwendet das erste, um die gemeinsame Transaktionszugehörigkeit zu zeigen. Es setzt weder
+nicht-null Transaktionsmetadaten auf oberster Ebene voraus noch belegt es eine atomare
+HTTP-Zustellung pro Transaktion. Der Empfänger sieht einzelne Requests und darf nicht
+annehmen, dass alle zugehörigen Ereignisse gemeinsam eintreffen.
 
-These abbreviated examples show structure; IDs, timestamps and source
-positions vary. Actual envelopes contain more source and row fields.
+Die gekürzten Beispiele zeigen nur die Struktur; IDs, Zeitstempel und Quellpositionen
+variieren. Tatsächliche Envelope enthalten weitere Quell- und Zeilenfelder.
+
 
 ```json
 {"before":null,"after":{"id":1,"external_ref":"cust-seed-1","name":"Ada Lovelace","email":"ada@example.test"},"source":{"schema":"timecritical","table":"customers","snapshot":"first","lsn":1234},"op":"r","transaction":null}
@@ -181,48 +193,51 @@ positions vary. Actual envelopes contain more source and row fields.
 {"before":{"id":4,"email":"demo@example.test"},"after":{"id":4,"email":"demo-updated@example.test"},"source":{"schema":"timecritical","table":"customers","snapshot":"false","txId":801,"lsn":2100},"op":"u","transaction":null}
 {"before":{"id":10,"sku":"SKU-demo-B"},"after":null,"source":{"schema":"timecritical","table":"order_items","snapshot":"false","txId":803,"lsn":2300},"op":"d","transaction":null}
 ```
+Die beobachtete HTTP-Darstellung enthält keinen separaten Record-Key- oder Topic-Header.
+Identifizieren Sie eine Zeile über `source.schema`, `source.table` und `after.id` oder bei
+einem Delete über `before.id`. Das Topic-Präfix `plumbing` bedeutet nicht, dass der Topic-
+Name als Ziel-Header übertragen wird. Receipt-Header enthalten HTTP-Kontext; die beobachteten
+Werte `x-debezium-__debezium.context.*` sind base64-kodiertes JSON und keine Zeilenschlüssel.
+Der Verifizierer protokolliert vorhandene Header, verlangt sie aber nicht.
 
-The observed HTTP representation has no separate record-key or topic header.
-Identify a row using `source.schema`, `source.table` and `after.id`, or
-`before.id` for a delete. Topic prefix `plumbing` does not imply that the topic
-name is sent as a destination header. Receipt headers include HTTP context;
-observed `x-debezium-__debezium.context.*` values are base64-encoded JSON,
-not row keys. Header presence is recorded rather than asserted by the verifier.
+Delete-Tombstones sind mit `tombstones.on.delete=false` deaktiviert; Delete-
+**Envelope** bleiben aktiviert. Der Empfänger akzeptiert leere oder JSON-null-Bodies mit
+HTTP 204 und einem Tombstone-Receipt, ohne eine Zeile zur Ereignisdatei hinzuzufügen.
 
-Delete tombstones are disabled by `tombstones.on.delete=false`; delete
-**envelopes** remain enabled. The receiver tolerates empty or JSON-null bodies
-with HTTP 204 and a tombstone receipt, without adding an event-file line.
+## Dauerhaftigkeit des Empfängers und seine drei Logs
 
-## Receiver durability and its three logs
+Bei gültigem, nicht-null JSON hängt der Empfänger mit einem FileChannel und `force(true)`
+eine vollständige JSONL-Zeile an, versucht danach ein Receipt zu schreiben und antwortet mit
+HTTP 200. Schlägt das Anhängen eines Ereignisses fehl, lautet die Antwort HTTP 500;
+ungültiges JSON führt zu HTTP 400. Schreibzugriffe sind gesperrt, damit parallele
+Anhänge sich nicht ineinander verschachteln. Die JSON-Prüfung validiert kein fachliches
+Schema: Der Endpunkt dient lediglich als Protokollierungs-Ersatz.
 
-For valid non-null JSON, the receiver appends a complete JSONL line using a
-FileChannel and `force(true)`, then attempts a receipt and returns HTTP 200.
-An event append failure returns HTTP 500; malformed JSON returns HTTP 400.
-Writes are locked to prevent concurrent append interleaving. JSON validation
-is not business-schema validation: the endpoint is a logging stand-in.
+Das Anhängen des Ereignisses bildet die Bestätigungsgrenze. Das Schreiben eines Receipts
+erfolgt nach bestem Bemühen: Ein Fehler dabei wird protokolliert und ändert eine erfolgreiche
+Ereigniszustellung nicht in eine Fehlermeldung. Ein Absturz oder eine verlorene Antwort nach
+dem dauerhaften Schreiben kann deshalb eine Wiederholung und eine weitere Ereigniszeile
+auslösen. Eine Duplikatunterdrückung gibt es nicht.
 
-The event append is the acknowledgement boundary. Receipt writing is best
-effort: a receipt failure is logged and does not change successful event delivery
-to a failing response. A crash or lost response after the durable append can
-therefore cause a retry and another event line. No duplicate suppression exists.
-
-| Host path | Contents | Use |
+| Host-Pfad | Inhalt | Zweck |
 |---|---|---|
-| `logs/events.jsonl` | compact complete envelopes | primary delivery evidence |
-| `logs/receipts.jsonl` | request time, status, bytes, lower-case headers, summary | HTTP/timing diagnosis |
-| `logs/receiver.log` | receiver diagnostics | write failures and request errors |
-| `runs/<RUN_ID>/expected.jsonl` | generator's seven expected changes | independent matching expectations |
-| `runs/<RUN_ID>/manifest.json` | scenario identity, times and counts | correlate a run |
-| `runs/verify-*.json` | verifier results and observations | retain acceptance evidence |
+| `logs/events.jsonl` | kompakte vollständige Envelope | primärer Zustellnachweis |
+| `logs/receipts.jsonl` | Anforderungszeit, Status, Bytes, Header in Kleinbuchstaben, Zusammenfassung | HTTP-/Zeitdiagnose |
+| `logs/receiver.log` | Diagnosemeldungen des Empfängers | Schreibfehler und Request-Fehler |
+| `runs/<RUN_ID>/expected.jsonl` | die sieben vom Generator erwarteten Änderungen | unabhängige Erwartungen für den Abgleich |
+| `runs/<RUN_ID>/manifest.json` | Szenario-ID, Zeiten und Anzahlen | Zuordnung eines Durchlaufs |
+| `runs/verify-*.json` | Ergebnisse und Beobachtungen des Verifizierers | Abnahmenachweis aufbewahren |
 
-Receipt `seq` is in-memory and starts again when the receiver restarts.
-Do not treat it as a globally unique event ID. Timing currently correlates
-ordered event receipts with event-file lines. Missing receipts can impair that
-correlation; delivery success and latency evidence are separate conclusions.
-Receiver health tests whether the event-file parent directory is writable;
-it does not perform a durable trial write or guarantee free disk space.
+Der Receipt-`seq`-Wert liegt nur im Arbeitsspeicher und beginnt nach jedem Neustart des
+Empfängers erneut. Behandeln Sie es nicht als global eindeutige Ereignis-ID. Für die
+Zeitmessung werden derzeit die geordneten Event-Receipts mit den Zeilen der Ereignisdatei
+abgeglichen. Fehlende Receipts können diesen Abgleich beeinträchtigen; erfolgreiche
+Zustellung und Latenznachweis sind getrennte Aussagen. Der Health-Check des Empfängers
+prüft, ob das übergeordnete Verzeichnis der Ereignisdatei beschreibbar ist. Er führt keinen
+dauerhaften Testschreibvorgang aus und garantiert keinen freien Speicherplatz.
 
-## Everyday commands
+## Alltägliche Befehle
+
 
 ```sh
 make build                         # build the Java receiver image
@@ -239,69 +254,76 @@ make restart                       # restart all services; preserve state
 make down                          # remove containers/network; retain volumes and host files
 make up                            # recreate services using retained state
 ```
+`make up` baut immer zuerst den Empfänger. Verwenden Sie diesen Befehl auf dem mit dem
+Internet verbundenen Vorbereitungshost. Auf dem Offline-Ziel verwenden Sie die Befehle
+des Offline-Leitfadens zum Start ohne Build und ohne Pull mit den übertragenen Images,
+auch nach einem vollständigen Reset der Testumgebung. `make seed` wendet das idempotente
+Seed-SQL erneut an; es setzt keinen sauberen Snapshot-Zustand her. `ON CONFLICT DO NOTHING`
+verhindert doppelte Seed-Einträge, setzt geänderte Felder vorhandener Zeilen aber nicht auf
+ihre ursprünglichen Werte zurück.
 
-`make up` always builds the receiver first. Use it on the connected preparation
-host. On the offline target, use the offline guide's no-build/no-pull startup
-commands with the transferred images, including after a disposable reset.
-`make seed` reapplies the idempotent seed SQL; it is not a clean snapshot reset.
-`ON CONFLICT DO NOTHING` prevents duplicate seed inserts, but it does not
-restore modified fields in existing rows to their original values.
+Für jeden Generatorlauf ist eine neue ID erforderlich: Buchstaben, Ziffern, Punkte,
+Unterstriche und Bindestriche; das erste Zeichen muss ein Buchstabe oder eine Ziffer sein.
+Bereits vorhandene Run-Verzeichnisse werden abgewiesen. Eine ID ist optional, wenn eine
+UTC-Zeitstempel-ID passt: `make generate`. Der Generator committet vier Inserts in T1,
+danach ein Kunden-Update in T2, ein Bestellungs-Update in T3 und ein Löschen einer
+Bestellposition in T4: insgesamt sieben erwartete erfasste Ereignisse. Zusätzlich fügt er
+einen Bulk-Job und zwei ausstehende Datensätze ein und aktualisiert einen ausstehenden
+Datensatz. Die aufgezeichneten erwarteten Zeilen verwenden die tatsächlich generierten
+Primärschlüssel.
 
-Each generator run needs a new ID: letters, digits, dots, underscores and
-hyphens, beginning with a letter or digit. Existing run directories are rejected.
-No ID is required if a UTC timestamp ID is suitable: `make generate`.
-The generator commits four inserts in T1, then a customer update in T2, an
-order update in T3 and an item delete in T4: seven expected captured events.
-It also inserts one bulk job and two pending records and updates one pending
-record. Its recorded expected rows use actual generated primary keys.
+## Sichere Abnahmefolge
 
-## Safe acceptance sequence
+Der vollständige Verifizierer ist ein aktiver Test-Harness: Er schreibt Datenbankzeilen,
+stoppt den Empfänger, lässt das Retry-Limit des Sinks ausschöpfen und startet Dienste neu.
+Führen Sie ihn auf diesem isolierten Proof aus und nicht auf einem gemeinsam genutzten
+Dienst, der ohne Unterbrechung verfügbar sein muss. Führen Sie nicht zwei Verifizierer
+oder gleichzeitig einen Verifizierer und ein manuelles Szenario aus; Run-IDs verwenden
+Zeitstempel mit einer Auflösung von einer Sekunde, und die gemeinsamen Logs werden global
+ausgewertet.
 
-The full verifier is an active test harness: it writes database rows, stops
-the receiver, exhausts the sink retry budget and restarts services. Run it on
-this isolated proof, not a shared service needing uninterrupted availability.
-Do not run two verifiers or a verifier and a manual scenario concurrently;
-run IDs use second-resolution timestamps and shared logs are inspected globally.
-
-The sequence below is for the connected preparation host. On the offline
-target replace `make up` with the offline guide's no-build/no-pull startup.
-For repeatable first-start acceptance, preserve any wanted logs/reports first,
-then explicitly discard this project's disposable state:
+Die folgende Abfolge gilt für den verbundenen Vorbereitungshost. Ersetzen Sie auf dem
+Offline-Ziel `make up` durch den Startbefehl des Offline-Leitfadens ohne Build und Pull.
+Sichern Sie für eine reproduzierbare Abnahme des ersten Starts zunächst alle gewünschten
+Logs und Berichte und verwerfen Sie danach ausdrücklich den flüchtigen Zustand dieses
+Projekts:
 
 ```sh
 make reset                         # DESTRUCTIVE: see exact scope below
 make up
 make verify
 ```
-
-`make reset` runs Compose down with volumes and removes
+`make reset` führt Compose mit Volumes herunter und entfernt
 `dbzproof_pg_data`, `dbzproof_debezium_data`, `logs/events.jsonl`,
-`logs/receipts.jsonl`, `logs/receiver.log` and contents of `runs/` except
-`.gitkeep`. It is not an ordinary restart. Do not use global Docker prune.
+`logs/receipts.jsonl`, `logs/receiver.log` sowie den Inhalt von `runs/` ausser
+`.gitkeep`. Das ist kein gewöhnlicher Neustart. Verwenden Sie kein globales Docker-Prune.
 
-Fresh snapshot verification requires both a fresh database/offset pair and
-fresh logs. Reusing old logs can count old snapshot rows; deleting logs alone
-while retaining offsets removes evidence without causing a new snapshot.
-Reinitialising only one volume creates a different test and can lose continuity.
-The full check expects exactly 3/4/8 seed snapshot rows. A resnapshot of a
-populated scenario database will not satisfy that fixture.
+Für die Verifizierung eines frischen Snapshots müssen sowohl das Datenbank-/Offset-Paar als
+auch die Logs frisch sein. Alte Logs können dazu führen, dass alte Snapshot-Zeilen
+mitgezählt werden; nur die Logs zu löschen, während die Offsets erhalten bleiben, entfernt
+Belege, löst aber keinen neuen Snapshot aus. Wird nur ein Volume neu initialisiert, entsteht
+ein anderer Test und die Kontinuität kann verloren gehen. Die vollständige Prüfung erwartet
+genau 3/4/8 Seed-Snapshot-Zeilen. Ein erneuter Snapshot einer befüllten Szenario-Datenbank
+erfüllt diese Fixture nicht.
 
-## Seven CLI checks, eight historical criteria
+## Sieben CLI-Prüfungen, acht historische Kriterien
 
-The original goal lists eight acceptance criteria. The implementation exposes
-seven individual checks, plus `all`: `scenario` combines row-envelope matching
-with the common-transaction criterion. There is no eighth individual command.
-The historical phrase “eight checks” refers to the criteria, not CLI subcommands.
+Das ursprüngliche Ziel nennt acht Abnahmekriterien. Die Implementierung stellt sieben
+einzelne Prüfungen sowie `all` bereit: `scenario` kombiniert den Abgleich der
+Zeilen-Envelope mit dem Kriterium gemeinsamer Transaktionen. Einen achten einzelnen
+Befehl gibt es nicht. Die historische Formulierung „eight checks“ bezieht sich auf die
+Kriterien und nicht auf CLI-Unterbefehle.
 
-| CLI check | What it actually does |
+| CLI-Prüfung | Tatsächliche Funktion |
 |---|---|
-| `health` | GET both health endpoints; parse the host event file's last line |
-| `snapshot` | wait for seed `r` envelopes; check exact 3/4/8 counts and markers |
-| `scenario` | generate a new run; match seven rows, before images and four common T1 txIds |
-| `bulk` | check that run's bulk rows; update bulk and wait for a captured marker; reject bulk envelopes |
-| `outage-short` | stop receiver for 10 seconds; generate; start receiver; await delivery with Debezium running |
-| `outage-long` | stop receiver until engine failure; restore receiver; explicitly restart Debezium; await backlog |
-| `restart` | generate before/after restart; check retained rows and unchanged snapshot count |
+| `health` | beide Health-Endpunkte per GET abfragen; die letzte Zeile der Host-Ereignisdatei einlesen |
+| `snapshot` | auf Seed-Envelope mit `r` warten; exakte Anzahlen 3/4/8 und Markierungen prüfen |
+| `scenario` | einen neuen Durchlauf erzeugen; sieben Zeilen, Vorher-Bilder und vier gemeinsame T1-txIds abgleichen |
+| `bulk` | Bulk-Zeilen des Durchlaufs prüfen; Bulk aktualisieren, auf eine erfasste Markierung warten und Bulk-Envelope zurückweisen |
+| `outage-short` | Empfänger 10 Sekunden stoppen; Szenario erzeugen; Empfänger starten; Zustellung bei laufendem Debezium abwarten |
+| `outage-long` | Empfänger bis zum Engine-Fehler stoppen; Empfänger wiederherstellen; Debezium ausdrücklich neu starten; Rückstand abarbeiten lassen |
+| `restart` | vor und nach dem Neustart einen Durchlauf erzeugen; erhaltene Zeilen und unveränderte Snapshot-Anzahl prüfen |
+
 
 ```sh
 python3 verify/verify.py --help
@@ -314,33 +336,36 @@ python3 verify/verify.py outage-long
 python3 verify/verify.py restart
 python3 verify/verify.py all
 ```
+`scenario --run-id` **erzeugt** den angegebenen Durchlauf; der Befehl liest nicht bloss
+einen vorhandenen manuellen Durchlauf ein. `bulk --run-id` liest die Erwartungen eines
+vorhandenen Durchlaufs und ergänzt eigene Diagnose-Updates. `all` erstellt eine
+Szenario-ID und übergibt sie an `bulk`. Jeder Aufruf schreibt einen Bericht mit Zeitstempel
+im JSON-Format und endet bei Erfolg mit 0, bei einem Fehler mit 1. Lesen Sie den
+benannten Bericht, bevor Sie eine fehlgeschlagene Prüfung erneut ausführen.
 
-`scenario --run-id` **creates** that run; it does not merely read an existing
-manual run. `bulk --run-id` reads an existing run's expectations and adds its
-own diagnostic updates. `all` creates and passes its scenario ID to `bulk`.
-Every invocation writes a timestamped JSON report and exits 0 on success,
-1 on failure. Inspect its named report before rerunning a failed check.
+Der Abgleich verwendet erwartete Schlüssel und Teilmengen der Vorher-/Nachher-Werte aus dem
+Generator; die Erwartungen werden nicht anhand der beobachteten Zustellung rekonstruiert.
+Duplikatberichte verwenden Quell-LSN, Schema, Tabelle, Operation und Zeilen-ID. Sie sind
+Beobachtungen und kein Dienst zur Duplikatunterdrückung bei der Zustellung. Einige Prüfungen
+melden Duplikate, ohne fehlzuschlagen; `scenario` verlangt zusätzlich genau vier passende
+T1-Ereignisse. Ein PASS ist keine Garantie für Exactly-once-Zustellung.
 
-Matching uses expected keys and before/after subsets from the generator,
-not a reconstructed expectation based on observed delivery. Duplicate reports
-use source LSN, schema, table, operation and row ID. They are observations,
-not a delivery deduplication service. Some checks report duplicates without
-failing; `scenario` additionally requires exactly four T1 event matches.
-Do not interpret a PASS as an exactly-once guarantee.
+## Verhalten bei Ausfällen und ausdrückliche Wiederherstellung
 
-## Outage behaviour and explicit recovery
+Das HTTP-Sink-Timeout beträgt 5000 ms, die Anzahl der Wiederholungen 10 und das Intervall
+zwischen Wiederholungen 3000 ms. Das Retry-Budget ist begrenzt. Verbindungsablehnungen und
+Timeouts verbrauchen unterschiedlich viel Zeit; aus diesen Einstellungen ergibt sich daher
+keine einheitliche garantierte Ausfalldauer. Verwenden Sie die Laufzeit, die Anzahl der
+Sendeversuche und die Logs des Verifizierers als Nachweis.
 
-The HTTP sink timeout is 5000 ms, retry count 10 and retry interval 3000 ms.
-The retry budget is finite. Refusals and timeouts consume different amounts
-of time, so there is no single guaranteed failure duration from these settings.
-Use the verifier's elapsed time, send-attempt count and logs as evidence.
+Im festgelegten, beobachteten Stack beendet das Ausschöpfen der Wiederholungen die
+eingebettete Engine, während der Container weiterläuft. `/q/health` liefert HTTP 503/DOWN,
+und Compose markiert den Container nach einiger Zeit als fehlerhaft. Es ist keine
+Restart-Policy konfiguriert. Ein laufender Container allein belegt deshalb nicht, dass die
+Erfassung funktioniert.
 
-On the pinned observed stack, retry exhaustion stops the embedded engine,
-while the container stays running. `/q/health` returns HTTP 503/DOWN and
-Compose eventually marks it unhealthy. No restart policy is configured.
-A running container is therefore insufficient evidence of capture health.
-
-Restore the receiver and restart Debezium to reopen the engine:
+Stellen Sie den Empfänger wieder her und starten Sie Debezium neu, damit die Engine erneut
+geöffnet wird:
 
 ```sh
 docker compose start receiver
@@ -350,22 +375,23 @@ make health
 make ps
 docker compose logs --tail=100 debezium
 ```
+`docker compose start debezium` startet keinen bereits laufenden, fehlerhaften Container
+neu. Ein kurzer Ausfall kann sich durch die Sink-Wiederholungen erholen; nach dem oben
+beschriebenen Ausschöpfen des Retry-Budgets ist ein ausdrücklicher Neustart erforderlich.
+Zu den bisherigen Beobachtungen gehören Engine-Fehlermeldungen mit
+`Exceeded maximum number of attempts` und `Engine has failed`. Anzahl der Versuche und
+Wiederherstellungszeit hängen vom jeweiligen Durchlauf ab.
 
-`docker compose start debezium` does not restart an already-running unhealthy
-container. A short outage can recover via sink retries; recovery after budget
-exhaustion above is supplied by an explicit restart. Existing observations
-include engine-failure messages containing `Exceeded maximum number of attempts`
-and `Engine has failed`. Treat attempt counts and recovery time as run-specific.
+## Logs ohne jq untersuchen
 
-## Inspecting logs without jq
+Geben Sie das letzte Envelope mit der Python-Standardbibliothek formatiert aus:
 
-Pretty-print the last envelope using Python's standard library:
 
 ```sh
 tail -n 1 logs/events.jsonl | python3 -m json.tool
 ```
+Zählen Sie Operationen und Tabellen und geben Sie das letzte Event-Receipt aus:
 
-Count operations and tables, and show the last event receipt:
 
 ```sh
 python3 - <<'PYCODE'
@@ -388,26 +414,27 @@ if receipts.exists():
         print(json.dumps(events[-1], indent=2))
 PYCODE
 ```
+Führen Sie diese Befehle bei ruhenden Logs aus oder wiederholen Sie sie nach einem
+gleichzeitigen Schreibvorgang an der letzten Zeile; der Verifizierer selbst toleriert eine
+unvollständige letzte JSONL-Zeile. Senden Sie während der Abnahme keine Test-JSON per POST
+an `/events`: Jedes gültige JSON-Objekt wird zu einer Zustellzeile und kann die Annahmen
+des Verifizierers ungültig machen.
 
-Run these on a quiescent log or retry after a concurrent final-line write;
-the verifier itself tolerates an incomplete final JSONL line. Do not POST test
-JSON into `/events` during acceptance: arbitrary valid JSON becomes a delivery
-line and can invalidate the verifier's assumptions.
+## Fehlerbehebung und zurückgehaltenes WAL
 
-## Troubleshooting and retained WAL
-
-| Symptom | First checks and interpretation |
+| Symptom | Erste Prüfungen und Bedeutung |
 |---|---|
-| Port already allocated | inspect host listeners; change paired port literals described above |
-| Receiver unhealthy or HTTP 500 | check UID/GID, bind-directory permissions, free space and `logs/receiver.log` |
-| Debezium running but unhealthy | inspect Debezium logs and `/q/health`; after sink exhaustion use `make recover` |
-| Scenario missing events | inspect report mismatch, receiver writes, connector health and capture allowlists |
-| Update/delete lacks old fields | inspect replica identity on the actual retained database |
-| Unexpected snapshot count | check volumes, old logs and whether offsets were removed separately |
-| Generator rejects ID | use a fresh valid ID; preserve prior run evidence rather than overwriting it |
-| Seed/schema edit appears ignored | init scripts only run against an empty PostgreSQL data volume |
+| Port bereits belegt | Host-Listener prüfen; die oben beschriebenen zusammengehörigen Port-Literale ändern |
+| Empfänger fehlerhaft oder HTTP 500 | UID/GID, Berechtigungen des Bind-Verzeichnisses, freien Speicher und `logs/receiver.log` prüfen |
+| Debezium läuft, ist aber fehlerhaft | Debezium-Logs und `/q/health` prüfen; nach erschöpftem Sink-Retry `make recover` ausführen |
+| Ereignisse im Szenario fehlen | Abweichungen im Bericht, Schreibvorgänge des Empfängers, Connector-Health und Capture-Allowlists prüfen |
+| Bei Update/Delete fehlen alte Felder | Replica Identity in der tatsächlich beibehaltenen Datenbank prüfen |
+| Unerwartete Snapshot-Anzahl | Volumes, alte Logs und separat entfernte Offsets prüfen |
+| Generator weist ID zurück | eine neue gültige ID verwenden; bisherige Run-Belege aufbewahren, statt sie zu überschreiben |
+| Seed-/Schema-Änderung scheint ignoriert | Init-Skripte laufen nur bei einem leeren PostgreSQL-Daten-Volume |
 
-Inspect publication membership, replica identity and slot progress with:
+Prüfen Sie die Mitgliedschaft der Publication, die Replica Identity und den Fortschritt des
+Slots mit:
 
 ```sh
 docker compose exec -T postgres psql -U dbz -d appdb <<'SQL'
@@ -421,27 +448,31 @@ SELECT slot_name, plugin, active, restart_lsn, confirmed_flush_lsn,
 FROM pg_replication_slots;
 SQL
 ```
+Replica Identity `f` bedeutet FULL. Solange der Verbraucher ausgefallen oder blockiert ist,
+kann der Slot WAL zurückhalten und den PostgreSQL-Speicher füllen. Überwachen Sie das
+zurückgehaltene WAL und den Speicherplatz; dieser Proof konfiguriert weder eine operative
+Grenze für die WAL-Aufbewahrung noch Warnmeldungen dazu. Löschen Sie den Slot oder die
+Offsets nicht als routinemässige Wiederherstellungsmassnahme: Dadurch kann benötigter
+Änderungsverlauf verloren gehen und ein erneuter Snapshot erzwungen werden. Stellen Sie
+zuerst die Zustellung wieder her und prüfen Sie anschliessend den Slot-Fortschritt sowie
+den Abbau des Rückstands. Bei vollem Speicher ist ein geplanter Datenbank-Wiederherstellungsplan
+erforderlich; wiederholte blinde Neustarts reichen nicht aus.
 
-Replica identity `f` means FULL. While the consumer is down or blocked, the
-slot can retain WAL and fill PostgreSQL storage. Monitor retained WAL and disk
-space; this proof configures no operational WAL-retention limit or alerting.
-Do not drop the slot or delete offsets as routine recovery: that can remove
-needed change history and force a resnapshot. Recover delivery first, then
-confirm slot progress and backlog catch-up. A storage-full condition deserves
-a deliberate database recovery plan rather than blind repeated restarts.
+## Auswirkungen auf den Produktivbetrieb
 
-## Production implications
+Dieser Empfänger bietet weder Authentifizierung noch eine Begrenzung der Request-Grösse,
+fachliche Validierung, Log-Rotation oder Duplikatunterdrückung. Zudem liest er jeden
+Request-Body vollständig in den Arbeitsspeicher. Die Append-Datei ist ein Nachweis und keine
+Warteschlange zur Verarbeitung von Geschäftsdaten. Planen Sie Aufbewahrung, Backups und
+Bestätigungssemantik nachgelagerter Systeme, bevor Sie die Datei dafür verwenden.
+Benannte Volumes und Bind-Mounts sind persistenter Speicher, aber keine Backups.
 
-This receiver has no authentication, request-size limit, business validation,
-rotation policy or deduplication, and reads each request body into memory.
-Its append file is evidence, not a business-processing queue. Plan retention,
-backups and downstream acknowledgement semantics before treating it as one.
-Named volumes and bind mounts are persistent storage, not backups.
-
-Production needs scoped database privileges, transport/authentication,
-credential management, WAL/slot monitoring, disk capacity and log retention.
-It also needs a considered strategy for duplicate handling, transactions,
-schema evolution and outages longer than the finite sink budget.
-Local delivery times use source timestamps and best-effort receipt timestamps;
-they depend on clocks and receipt alignment. They are observations, not an SLA.
-The proof's successful runs inform that design but do not replace it.
+Für den Produktivbetrieb braucht es begrenzte Datenbankberechtigungen, abgesicherten und
+authentifizierten Transport, Zugangsdatenverwaltung, Überwachung von WAL und Slots,
+Speicherkapazität und Log-Aufbewahrung. Ebenso ist eine durchdachte Strategie für
+Duplikatbehandlung, Transaktionen, Schemaänderungen und Ausfälle nötig, die länger als das
+begrenzte Sink-Retry-Budget dauern.
+Lokale Zustellzeiten verwenden Quellzeitstempel und Receipt-Zeitstempel nach bestem Bemühen;
+sie hängen von den Uhren und der Zuordnung der Receipts ab. Es sind Beobachtungen und kein
+SLA. Erfolgreiche Durchläufe des Proofs liefern Anhaltspunkte für diesen Entwurf, ersetzen
+ihn aber nicht.

@@ -1,26 +1,29 @@
-# Debezium Server plumbing proof
+# Debezium Server Funktionsnachweis
 
-Detailed documentation: [operator guide](docs/operator-guide.md) and
-[offline Oracle Linux 8 deployment](docs/oracle-linux-8-offline.md).
+[English](README-en.md)
 
-## What this is
+Ausführliche Dokumentation: [Operator Guide](docs/operator-guide.md),
+[Offline Installation auf Oracle Linux 8](docs/oracle-linux-8-offline.md) und
+[Entwicklerleitfaden für Cyrille](docs/entwicklerleitfaden-de.md).
 
-A local, reproducible proof of PostgreSQL change capture through Debezium Server into a Java HTTP receiver. It models time-critical row changes and a separate, uncaptured bulk strand. It is for local development only.
+## Zweck
 
-## Versions
+Ein lokaler, reproduzierbarer Nachweis der Änderungserfassung aus PostgreSQL über Debezium Server bis zu einem Java-HTTP-Empfänger. Der Aufbau modelliert zeitkritische Zeilenänderungen und einen separaten, nicht erfassten Bulk-Datenpfad. Er ist ausschliesslich für lokale Entwicklung vorgesehen.
 
-| Component | Version |
+## Versionen
+
+| Komponente | Version |
 |---|---|
 | PostgreSQL | 18.6-alpine |
 | Debezium Server | 3.7.0.Final |
-| Maven build image | 3.10.0-eclipse-temurin-25-alpine |
-| Java runtime image | 25.0.4_7-jre-alpine |
+| Maven Build Image | 3.10.0-eclipse-temurin-25-alpine |
+| Java Runtime Image | 25.0.4_7-jre-alpine |
 
-## Prerequisites
+## Voraussetzungen
 
-Docker CE and Docker Compose running natively in WSL. Docker Desktop is not used. Python 3.12 is needed for verification.
+Docker CE und Docker Compose laufen nativ in WSL. Docker Desktop wird nicht verwendet. Für die Verifikation wird Python 3.12 benötigt.
 
-## Quick start
+## Schnellstart
 
 ```sh
 make up
@@ -29,59 +32,59 @@ make generate RUN_ID=r1
 make verify
 ```
 
-## Operations
+## Betrieb
 
-Build the receiver: `make build` (underlying command: `docker compose build receiver`).
+Empfänger bauen: `make build` (zugrunde liegender Befehl: `docker compose build receiver`).
 
-Start the stack: `make up` (underlying command: `docker compose up -d --wait postgres receiver debezium`).
+Stack starten: `make up` (zugrunde liegender Startbefehl: `docker compose up -d --wait postgres receiver debezium`).
 
-Check health: `make health` (underlying commands: `curl -fs http://127.0.0.1:8080/health` and `curl -fs http://127.0.0.1:8081/q/health`).
+Health prüfen: `make health` (zugrunde liegende Befehle: `curl -fs http://127.0.0.1:8080/health` und `curl -fs http://127.0.0.1:8081/q/health`).
 
-Generate a deterministic change set: `make generate RUN_ID=r1` (underlying command: `RUN_ID=r1 docker compose run --rm generator`).
+Deterministische Änderungen erzeugen: `make generate RUN_ID=r1` (zugrunde liegender Befehl: `RUN_ID=r1 docker compose run --rm generator`).
 
-Inspect the database with `make psql` (underlying command: `docker compose exec postgres psql -U dbz -d appdb`). For example:
+Datenbank mit `make psql` untersuchen (zugrunde liegender Befehl: `docker compose exec postgres psql -U dbz -d appdb`). Zum Beispiel:
 
 ```sql
 select * from timecritical.customers order by id;
 select run_id, status from bulk.batch_jobs order by id;
 ```
 
-Tail container diagnostics with `make logs` (underlying command: `docker compose logs -f --tail=100`). Tail envelopes with `make tail` (underlying command: `tail -f logs/events.jsonl`).
+Containerdiagnostik mit `make logs` verfolgen (zugrunde liegender Befehl: `docker compose logs -f --tail=100`). Envelopes mit `make tail` verfolgen (zugrunde liegender Befehl: `tail -f logs/events.jsonl`).
 
-Run every verification check: `make verify` (underlying command: `python3 verify/verify.py all`).
+Alle Verifikationsprüfungen ausführen: `make verify` (zugrunde liegender Befehl: `python3 verify/verify.py all`).
 
-Reproduce the short outage: `make outage-short` (underlying command: `python3 verify/verify.py outage-short`).
+Kurzen Ausfall reproduzieren: `make outage-short` (zugrunde liegender Befehl: `python3 verify/verify.py outage-short`).
 
-Reproduce the long outage: `make outage-long` (underlying command: `python3 verify/verify.py outage-long`).
+Langen Ausfall reproduzieren: `make outage-long` (zugrunde liegender Befehl: `python3 verify/verify.py outage-long`).
 
-Recover Debezium after retry exhaustion: `make recover` (underlying command: `docker compose restart debezium`).
+Debezium nach ausgeschöpftem Retry-Budget wiederherstellen: `make recover` (zugrunde liegender Befehl: `docker compose restart debezium`).
 
-Stop while preserving data and offsets: `make stop` (underlying command: `docker compose stop`). Restart likewise preserves them: `make restart` (underlying command: `docker compose restart`).
+Mit `make stop` stoppen und Daten sowie Offsets erhalten (zugrunde liegender Befehl: `docker compose stop`). Auch `make restart` erhält sie (zugrunde liegender Befehl: `docker compose restart`).
 
-Reset with `make reset` (underlying Compose command: `docker compose --profile tools down -v --remove-orphans`; it then removes the named host log files and the contents of `runs/` except `.gitkeep`). It deletes containers, volumes `dbzproof_pg_data` and `dbzproof_debezium_data`, `logs/events.jsonl`, `logs/receipts.jsonl`, `logs/receiver.log`, and the contents of `runs/` except `.gitkeep`.
+Mit `make reset` zurücksetzen (zugrunde liegender Compose-Befehl: `docker compose --profile tools down -v --remove-orphans`; anschliessend werden die benannten Host-Logdateien und der Inhalt von `runs/` ausser `.gitkeep` entfernt). Dabei werden Container, die Volumes `dbzproof_pg_data` und `dbzproof_debezium_data`, `logs/events.jsonl`, `logs/receipts.jsonl`, `logs/receiver.log` und der Inhalt von `runs/` ausser `.gitkeep` gelöscht.
 
-## Contract
+## Schnittstellenvertrag
 
-The receiver exposes `POST /events` and `GET /health`; Debezium health is `GET /q/health` on port 8081. Event posts contain the full Debezium envelope (`before`, `after`, `source`, `transaction`, `op`, and timestamps), not an aggregate or unwrapped row. JSON schema metadata is disabled and delete tombstones are disabled, while delete envelopes themselves are retained. `logs/receipts.jsonl` is a sidecar containing request time, method, path, status, byte count, normalized headers, and an event summary; it does not alter `logs/events.jsonl`.
+Der Empfänger bietet `POST /events` und `GET /health`; Debezium-Health ist über `GET /q/health` auf Port 8081 erreichbar. Event-POSTs enthalten das vollständige Debezium-Envelope (`before`, `after`, `source`, `transaction`, `op` und Zeitstempel), keine aggregierte oder aus dem Envelope herausgelöste Zeile. JSON-Schema-Metadaten und Delete-Tombstones sind deaktiviert; Delete-Envelopes bleiben erhalten. `logs/receipts.jsonl` enthält als separate Begleitdatei den Receipt-Zeitstempel, Methode, Pfad, Status, Byteanzahl, normalisierte Header und eine Ereigniszusammenfassung; sie verändert `logs/events.jsonl` nicht.
 
-## Retry settings
+## Retry Einstellungen
 
-The HTTP sink uses a 5000 ms timeout, 10 retries, and a 3000 ms retry interval. Observed after 1 + 10 attempts (about 48 seconds with connection refused and two connect timeouts), the embedded engine stops with `Exceeded maximum number of attempts to publish event`. The container keeps running, `/q/health` returns 503 `DOWN`, and Compose shows `unhealthy`; there is no automatic restart (`restart: "no"`). Recover with `make recover` (`docker compose restart debezium`). On recovery, Debezium resumes from the persisted offset and delivers the backlog (observed: 14 events, 0 duplicates). The 10-second `outage-short` recovered through the sink's own retries in 15.1 seconds, with the engine never stopping.
+Der HTTP-Sink verwendet einen Timeout von 5000 ms, 10 Retries und ein Retry-Intervall von 3000 ms. Im beobachteten Versuch stoppte die eingebettete Engine nach 1 + 10 Versuchen (etwa 48 Sekunden bei abgelehnten Verbindungen und zwei Verbindungs-Timeouts) mit `Exceeded maximum number of attempts to publish event`. Der Container läuft weiter, `/q/health` liefert 503 `DOWN`, und Compose zeigt `unhealthy`; es gibt keinen automatischen Neustart (`restart: "no"`). Die Wiederherstellung erfolgt mit `make recover` (`docker compose restart debezium`). Danach setzt Debezium beim persistierten Offset fort und liefert den Rückstand aus (beobachtet: 14 Events, 0 Duplikate). Beim zehnsekündigen `outage-short` erfolgte die Wiederherstellung durch die eigenen Retries des Sinks nach 15,1 Sekunden, ohne dass die Engine stoppte.
 
-## Verification
+## Verifikation
 
-`verify/verify.py` proves receiver and Debezium health, first-start snapshot counts, generator envelope matching and replica identity, same-transaction row events, exclusion of bulk rows, brief-outage retry recovery, long-outage failure and explicit recovery, plus ordinary restart persistence and lack of re-snapshot. It reports duplicate source-position deliveries and local delivery-time observations.
+`verify/verify.py` prüft Empfänger- und Debezium-Health, Snapshot-Anzahlen beim ersten Start, das Matching der Generator-Envelopes und Replica Identity, Zeilenereignisse derselben Transaktion, den Ausschluss von Bulk-Zeilen, Retry-Recovery bei kurzem Ausfall, Fehlerzustand und explizite Recovery bei langem Ausfall sowie Persistenz und ausbleibenden erneuten Snapshot bei gewöhnlichem Neustart. Es protokolliert mehrfach zugestellte Quellpositionen und lokale Zustellzeitbeobachtungen.
 
-## Limitations
+## Einschränkungen
 
-This is a local proof, not a production benchmark. Credentials are local superuser credentials. Delivery is not exactly once, and duplicates may occur during recovery. Delivery time is an observation, not a benchmark or SLA.
+Dies ist ein lokaler Funktionsnachweis, kein Produktionsbenchmark. Die Zugangsdaten sind lokale Superuser-Zugangsdaten. Die Zustellung garantiert kein Exactly-once; bei der Wiederherstellung können Duplikate entstehen. Zustellzeiten sind Beobachtungen, kein Benchmark und kein SLA.
 
-## Observed on first run
+## Beobachtungen beim ersten Lauf
 
-PostgreSQL 18.6, Debezium Server 3.7.0.Final, Java 25.0.4 runtime, and a receiver built with Maven 3.10.0 were used. The snapshot delivered 15 envelopes: 3 customers, 4 orders, and 8 order_items. Its `source.snapshot` values included `first`, `true`, `last_in_data_collection`, `first_in_data_collection`, and `last`.
+Verwendet wurden PostgreSQL 18.6, Debezium Server 3.7.0.Final, die Java-25.0.4-Runtime und ein mit Maven 3.10.0 gebauter Empfänger. Der Snapshot lieferte 15 Envelopes: 3 Kunden, 4 Bestellungen und 8 Bestellpositionen. Die Werte von `source.snapshot` umfassten `first`, `true`, `last_in_data_collection`, `first_in_data_collection` und `last`.
 
-The scenario matched 7/7 expected events; four T1 envelopes shared one `source.txId`. `before` was populated on `u` and `d` events because of `REPLICA IDENTITY FULL`. Bulk rows were present in PostgreSQL with no `bulk` envelope. Local delivery-time observation (not a benchmark): min 757 ms, median 786 ms, max 797 ms.
+Das Szenario lieferte Matches für 7/7 erwartete Events; vier T1-Envelopes teilten dieselbe `source.txId`. Durch `REPLICA IDENTITY FULL` war `before` bei `u`- und `d`-Events befüllt. Die Bulk-Zeilen waren in PostgreSQL vorhanden, ohne dass ein `bulk`-Envelope eintraf. Lokale Zustellzeitbeobachtung (kein Benchmark): Minimum 757 ms, Median 786 ms, Maximum 797 ms.
 
-The HTTP representation facts are documented in `debezium/README.md`.
+Die Fakten zur HTTP-Repräsentation sind in `debezium/README.md` dokumentiert.
 
-Final consolidated run on 2026-10-09 (`runs/verify-20261009T184304Z.json`): all eight checks PASS. Long outage: the engine stopped after 10 send attempts in 39.0 s, the container stayed running with health DOWN, and an explicit `docker compose restart debezium` delivered the backlog with 0 duplicates. Ordinary `docker compose restart`: rows and offsets retained, snapshot count stayed at 15 (no re-snapshot), 0 duplicates. Delivery time that run: min 589 ms, median 602 ms, max 611 ms (local observation, not a benchmark). Runs are not exactly-once by design; duplicates were simply not observed in these runs.
+Abschliessender Gesamtlauf vom 9. Oktober 2026 (`runs/verify-20261009T184304Z.json`): alle acht Abnahmekriterien PASS. Die CLI enthält sieben Einzelprüfungen; `scenario` kombiniert Zeilenmatching und Transaktionsprüfung. Langer Ausfall: Die Engine stoppte nach 10 Sendversuchen in 39,0 s, der Container lief mit Health DOWN weiter, und ein explizites `docker compose restart debezium` lieferte den Rückstand mit 0 Duplikaten aus. Gewöhnliches `docker compose restart`: Zeilen und Offsets blieben erhalten, die Snapshot-Anzahl blieb bei 15 (kein erneuter Snapshot), 0 Duplikate. Zustellzeit in diesem Lauf: Minimum 589 ms, Median 602 ms, Maximum 611 ms (lokale Beobachtung, kein Benchmark). Die Läufe garantieren konstruktionsbedingt kein Exactly-once; in diesen Läufen wurden lediglich keine Duplikate beobachtet.
