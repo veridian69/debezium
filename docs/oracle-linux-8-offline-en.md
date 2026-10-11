@@ -2,7 +2,7 @@
 
 Language: [Deutsch](oracle-linux-8-offline-de.md)
 
-This is the deployment recipe for Jon's setup: build on an internet-connected
+This is how Jon's setup reaches the offline host: build on an internet-connected
 Ubuntu VM on the laptop, transfer a bundle, and run on an Oracle Linux 8 host
 with Docker CE already installed and SELinux disabled. The target does not need
 internet access, Maven, a JDK, Git, a PostgreSQL client or a container registry.
@@ -110,7 +110,7 @@ docker info --format '{{.Architecture}}'
 | `x86_64` | `linux/amd64` |
 | `aarch64` | `linux/arm64` |
 
-The simplest path is a VM with the same architecture as OL8. The instructions
+Use a VM with the same architecture as OL8 if possible. The instructions
 below assume that is true. An x86 Ubuntu VM and x86 OL8 host are the usual case,
 but check rather than guessing.
 
@@ -162,7 +162,7 @@ names; two copies on the same daemon are not isolated simply by using two
 directories or `-p` project names.
 
 If `.env` image tags change, update the three explicit image references in
-the packaging and inspection commands too. The recipe intentionally records
+the packaging and inspection commands too. The recipe records
 the pinned versions used by this proof.
 
 ## 5. Produce a self-contained transfer bundle
@@ -362,7 +362,7 @@ python3.12 verify/verify.py all
 Run the full verifier before manual database edits or generated examples on
 this fresh installation. It writes evidence under `runs/`, creates scenario
 rows, deliberately stops/restarts the receiver, and restarts the stack. This
-is an acceptance exercise, not a passive monitoring command.
+is an acceptance exercise: it deliberately interrupts delivery.
 
 If you only need a quick health check:
 
@@ -396,7 +396,7 @@ Transfer that directory and install on the target with repositories disabled:
 sudo dnf --disablerepo='*' install ./python-rpms/*.rpm
 ```
 
-This is conditional guidance, not a universal RPM set: validate dependency
+The required RPMs depend on the target: validate dependency
 closure against the actual target, retain vendor signatures, and include
 approved signing keys if the target lacks them. Do not add `--nogpgcheck`.
 An older OL8 minor version may require an approved OS update first.
@@ -473,8 +473,8 @@ the create/recreate command after changing those settings.
 The exhausted engine can leave its container **running but unhealthy**. An
 offline host behaves the same as the laptop: restore receiver health, then
 restart Debezium explicitly. A container exit-based restart policy does not
-solve that failure mode. No reboot auto-start policy has been added by this
-deployment; after host maintenance, inspect state and start deliberately.
+solve that failure mode. This deployment does not configure automatic startup after a reboot.
+After host maintenance, inspect state and start the required services deliberately.
 
 Keep the named volumes `dbzproof_pg_data` and `dbzproof_debezium_data` together
 with the installation record. `docker compose down` retains them;

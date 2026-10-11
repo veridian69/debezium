@@ -2,7 +2,7 @@
 
 Für Cyrille. Stand: 11. Oktober 2026.
 
-Dieser Aufbau untersucht die Strecke PostgreSQL → Debezium Server → HTTP-Empfänger. Er zeigt, welche Zeilenänderungen ankommen, welche Informationen die Nachrichten enthalten und wie sich Zustellung und Wiederanlauf bei Ausfällen verhalten. Er eignet sich als Ausgangspunkt für eigene funktionale Experimente; die vorhandenen Messungen sind kein Leistungsnachweis für eine Produktionsinstallation.
+Der Versuchsaufbau untersucht PostgreSQL → Debezium Server → HTTP-Empfänger: Welche Zeilenänderungen kommen an, was steht in den Nachrichten, und wie geht es nach einem Ausfall weiter? Die vorhandenen Tests liefern dafür einen Ausgangspunkt. Für Aussagen über Produktionslasten braucht es eigene Messungen.
 
 ## Aufbau und Installation
 
@@ -28,7 +28,7 @@ Es gibt keinen Kafka-Broker. Debezium Server betreibt den PostgreSQL-Connector a
 | `receiver` | `POST /events`, `GET /health`; Speicherung und Empfangsdiagnostik | Bind-Mount `logs/`; Hostport 8080 |
 | `generator` | Manuell gestartetes SQL-Szenario; schreibt Erwartungen und Manifest | Compose-Profil `tools`; Bind-Mount `runs/` |
 
-Alle veröffentlichten Ports sind an `127.0.0.1` gebunden. Die Zugangsdaten `dbz` / `dbz` sind lokale Demonstrationsdaten mit Superuser-Rechten. HTTP besitzt weder TLS noch Authentifizierung. Das ist eine bewusste Vereinfachung des Versuchsaufbaus.
+Alle veröffentlichten Ports sind an `127.0.0.1` gebunden. Die Zugangsdaten `dbz` / `dbz` sind lokale Demonstrationsdaten mit Superuser-Rechten. HTTP besitzt weder TLS noch Authentifizierung. Für diesen Versuch reicht das. Für ein produktives System wäre es zu wenig.
 
 Beim **ersten Start einer leeren Datenbank** führt das PostgreSQL-Image die Dateien in `postgres/init/` aus:
 
@@ -68,7 +68,7 @@ make verify
 
 `make reset` entfernt Container, die Volumes `dbzproof_pg_data` und `dbzproof_debezium_data`, die drei benannten Logdateien und den Inhalt von `runs/` ausser `.gitkeep`. `make stop`, `make restart` und `make down` erhalten Datenbank und Offsets. Nur Logs zu löschen verursacht keinen neuen Snapshot; nur eines der beiden Volumes zurückzusetzen ergibt eine andere Versuchsanordnung.
 
-Der vollständige Verifier schreibt Daten, stoppt den Empfänger und startet Dienste neu. Daher nur auf einem isolierten Testaufbau ausführen. Keine parallelen Verifier oder manuellen Szenarien starten: Sie teilen Datenbank, Logs und Container; automatisch erzeugte IDs und Reportnamen haben Sekundenauflösung.
+Der vollständige Verifier schreibt Daten, stoppt den Empfänger und startet Dienste neu. Er bleibt also nicht höflich am Rand stehen. Nur auf einem isolierten Testaufbau ausführen. Keine parallelen Verifier oder manuellen Szenarien starten: Sie teilen Datenbank, Logs und Container; automatisch erzeugte IDs und Reportnamen haben Sekundenauflösung.
 
 Für ein Ziel ohne Internet gelten die separaten Anweisungen in [Oracle Linux 8 offline](oracle-linux-8-offline.md). Dort wird der fertige Empfänger als Image übertragen und ohne Build oder Pull gestartet. `make up` ist dafür ungeeignet, weil es immer den Build anstösst.
 
@@ -86,7 +86,7 @@ Für ein Ziel ohne Internet gelten die separaten Anweisungen in [Oracle Linux 8 
 
 `REPLICA IDENTITY FULL` ermöglicht alte Spaltenwerte für Updates und Deletes. Der Verifier prüft ausgewählte erwartete Werte, nicht automatisch jede Spalte. JSON-Schema-Metadaten und zusätzliche Delete-Tombstones sind abgeschaltet; Delete-Envelopes werden dennoch geliefert.
 
-Der Empfänger schreibt jedes Ereignis mit `FileChannel.force(true)`, bevor er HTTP 200 sendet. Schreibfehler der Ereignisdatei ergeben HTTP 500. Das macht den Empfänger bewusst einfach und beeinflusst den Durchsatz. Es macht das HTTP-Protokoll nicht atomar: Geht die Antwort nach erfolgreichem Schreiben verloren, kann derselbe Event nochmals eintreffen.
+Der Empfänger schreibt jedes Ereignis mit `FileChannel.force(true)`, bevor er HTTP 200 sendet. Schreibfehler der Ereignisdatei ergeben HTTP 500. Das hält den Empfänger einfach, kostet aber Durchsatz. Das HTTP-Protokoll wird dadurch nicht atomar: Geht die Antwort nach erfolgreichem Schreiben verloren, kann derselbe Event nochmals eintreffen.
 
 `logs/receipts.jsonl` protokolliert Status, Header, Body-Länge, Ereigniszusammenfassung und `received_at`; dieser Zeitstempel entsteht beim Schreiben des Receipts nach dem Ereignisschreiben. Receipt-Schreibfehler werden diagnostiziert, verhindern aber nicht automatisch HTTP 200. Ereignisdatei, Receipt-Datei und Connector-Offset bilden keine gemeinsame Transaktion. `logs/receiver.log` enthält die Empfängerdiagnostik.
 
@@ -148,19 +148,19 @@ Der lokal vorliegende vollständige Report `runs/verify-20261011T155040Z.json` e
 | Duplikate | Bei den Prüfungen, die Duplikate auswerten, keine beobachtet |
 | Lokale Zustellzeit | Sieben Samples: Minimum 820,0 ms, Median 842,3 ms, Maximum 852,3 ms |
 
-Der dokumentierte Lauf vom 9. Oktober zeigte ebenfalls erfüllte Abnahmekriterien, etwa 39 s bis zum Fehlerzustand beim langen Ausfall und Zustellzeiten von 589/602/611 ms. Die Unterschiede sind Beobachtungen verschiedener Läufe, keine zugesicherten Grenzen.
+Der dokumentierte Lauf vom 9. Oktober zeigte ebenfalls erfüllte Abnahmekriterien, etwa 39 s bis zum Fehlerzustand beim langen Ausfall und Zustellzeiten von 589/602/611 ms. So sahen diese Läufe aus. Daraus folgt noch keine zugesicherte Grenze.
 
 Die aktuelle Konfiguration setzt 5000 ms HTTP-Timeout, 10 Retries und 3000 ms Retry-Intervall. Verbindungsablehnungen, Timeouts und die Logzählung erlauben keine garantierte Ausfalldauer durch einfache Multiplikation. Ausschlaggebend sind die gemessene Dauer, Health und Engine-Logs.
 
 ### Grenzen der Aussagekraft
 
-Ein PASS zeigt, dass die jeweilige Assertion erfüllt wurde. Der Long-Outage-Test akzeptiert etwa einen beobachteten Health-/Container-Fehlerzustand; er zeichnet Engine-Fehlerzeilen auf, verlangt deren Vorhandensein aber nicht als separate Assertion. Der Short-Outage-Test beobachtet Containerzustände und erfolgreiche Zustellung, keine lückenlose interne Engine-Historie. Für Varianten dieser Fehlerbilder sollten die Assertions entsprechend verschärft werden.
+Ein PASS bedeutet: Die jeweilige Assertion wurde erfüllt. Mehr behauptet der Test nicht. Der Long-Outage-Test akzeptiert etwa einen beobachteten Health-/Container-Fehlerzustand; er zeichnet Engine-Fehlerzeilen auf, verlangt deren Vorhandensein aber nicht als separate Assertion. Der Short-Outage-Test beobachtet Containerzustände und erfolgreiche Zustellung, keine lückenlose interne Engine-Historie. Für andere Fehlerbilder die Assertions entsprechend verschärfen.
 
 Das Matching vergleicht Operation, Schema, Tabelle, `id` und konfigurierte Spaltenwerte. Es beweist keine globale Reihenfolge, vollständige Feldgleichheit oder atomare Verarbeitung einer Transaktion durch den Empfänger. Die Dublettenheuristik verwendet `(LSN, Schema, Tabelle, Operation, id)`; einige Prüfungen protokollieren Dubletten, ohne deswegen fehlzuschlagen. T1 verlangt dagegen genau vier Matches.
 
 Die Zeitmessung vergleicht `source.ts_ms` mit dem Receipt-Zeitstempel. Sie umfasst damit auch lokale Verarbeitung und Dateischreiben; sie ist keine reine Netzwerklatenz. Die Zuordnung erfolgt über die Position der Ereigniszeile und der Event-Receipts. Für zusätzliche parallele HTTP-Clients oder verteilte Hosts sind eine explizite Korrelation und synchronisierte Uhren nötig.
 
-Nicht belegt sind Exactly-once, dauerhafte Verlustfreiheit bei beliebigen Crash-Zeitpunkten, hohe Last, Langzeitstabilität, Hochverfügbarkeit oder das Verhalten anderer Datenbank-Connectoren. Für solche Aussagen braucht es zusätzliche Experimente.
+Nicht belegt sind Exactly-once, dauerhafte Verlustfreiheit bei beliebigen Crash-Zeitpunkten, hohe Last, Langzeitstabilität, Hochverfügbarkeit oder das Verhalten anderer Datenbank-Connectoren. Wer das wissen will, muss es gezielt testen.
 
 ## Eigene Tests ergänzen
 
@@ -178,7 +178,7 @@ Ein zusätzliches `u`-Event ausserhalb T1 kann mit derselben Matching-Logik gepr
 
 ### Eigenständiges Rollback-Experiment
 
-Das folgende Experiment lässt den Standardgenerator unverändert. Es setzt eine gesunde Installation voraus und muss ohne parallele Writer laufen. Die Marker sind einmalig; bei einer Wiederholung beide Marker ändern.
+Das folgende Experiment kommt ohne Änderungen am Standardgenerator aus. Voraussetzung ist ein gesunder Stack ohne parallele Writer. Bei einer Wiederholung beide Marker ändern; sie sind einmalig.
 
 ```sh
 docker compose exec -T postgres psql -X -v ON_ERROR_STOP=1 -U dbz -d appdb <<'SQL'
@@ -251,7 +251,7 @@ Bei zusammengesetzten beziehungsweise anderen Primärschlüsseln die derzeit auf
 
 HTTP-Batching ist derzeit deaktiviert. Einfaches Einschalten verändert den Payload-Vertrag; Empfänger, Logformat und Verifier müssen dann auf die tatsächliche Batch-Repräsentation angepasst werden. Ebenso sind Credentials und Hostports nicht durchgehend parametrisiert: `.env`, Connector-Konfiguration, Makefile und Verifier enthalten teilweise dieselben Werte als Literale und müssen gemeinsam geändert werden.
 
-Für grössere Lasttests liest der aktuelle Verifier wiederholt die gesamte Ereignisdatei und sucht Matches verschachtelt. Das ist für kleine Funktionsproben ausreichend. Für belastbare Messungen inkrementell lesen, nach Ereignisidentität indexieren und die Messung vom Prüfaufwand trennen. Die beiden Named Volumes und die Container haben feste Namen; ein zweites Checkout auf demselben Docker-Daemon ist daher ohne Anpassungen kein unabhängiger Testaufbau.
+Für grössere Lasttests liest der aktuelle Verifier wiederholt die gesamte Ereignisdatei und sucht Matches verschachtelt. Für kleine Funktionsproben reicht das. Für belastbare Messungen inkrementell lesen, nach Ereignisidentität indexieren und die Messung vom Prüfaufwand trennen. Die beiden Named Volumes und die Container haben feste Namen; ein zweites Checkout auf demselben Docker-Daemon ist daher ohne Anpassungen kein unabhängiger Testaufbau.
 
 ## Relevante Dateien
 

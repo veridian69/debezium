@@ -2,13 +2,15 @@
 
 [Deutsch](README-de.md)
 
-Detailed documentation: [operator guide](docs/operator-guide-en.md) and
-[offline Oracle Linux 8 deployment](docs/oracle-linux-8-offline-en.md), and
-[developer guide for Cyrille (German)](docs/entwicklerleitfaden-de.md).
+The details:
+
+- [Operator guide](docs/operator-guide-en.md)
+- [Offline Oracle Linux 8 deployment](docs/oracle-linux-8-offline-en.md)
+- [Developer guide for Cyrille (German)](docs/entwicklerleitfaden-de.md)
 
 ## What this is
 
-A local, reproducible proof of PostgreSQL change capture through Debezium Server into a Java HTTP receiver. It models time-critical row changes and a separate, uncaptured bulk strand. It is for local development only.
+A reproducible test rig for PostgreSQL → Debezium Server → Java HTTP receiver. It captures time-critical row changes and leaves a separate bulk strand alone. Use it to investigate delivery and failure behaviour locally. It is for local development only.
 
 ## Versions
 
@@ -34,34 +36,34 @@ make verify
 
 ## Operations
 
-Build the receiver: `make build` (underlying command: `docker compose build receiver`).
+Build the receiver: `make build` (direct: `docker compose build receiver`).
 
-Start the stack: `make up` (underlying command: `docker compose up -d --wait postgres receiver debezium`).
+Start the stack: `make up` (direct: `docker compose up -d --wait postgres receiver debezium`).
 
-Check health: `make health` (underlying commands: `curl -fs http://127.0.0.1:8080/health` and `curl -fs http://127.0.0.1:8081/q/health`).
+Check health: `make health` (direct: `curl -fs http://127.0.0.1:8080/health` and `curl -fs http://127.0.0.1:8081/q/health`).
 
-Generate a deterministic change set: `make generate RUN_ID=r1` (underlying command: `RUN_ID=r1 docker compose run --rm generator`).
+Generate a deterministic change set: `make generate RUN_ID=r1` (direct: `RUN_ID=r1 docker compose run --rm generator`).
 
-Inspect the database with `make psql` (underlying command: `docker compose exec postgres psql -U dbz -d appdb`). For example:
+Inspect the database with `make psql` (direct: `docker compose exec postgres psql -U dbz -d appdb`). For example:
 
 ```sql
 select * from timecritical.customers order by id;
 select run_id, status from bulk.batch_jobs order by id;
 ```
 
-Tail container diagnostics with `make logs` (underlying command: `docker compose logs -f --tail=100`). Tail envelopes with `make tail` (underlying command: `tail -f logs/events.jsonl`).
+Tail container diagnostics with `make logs` (direct: `docker compose logs -f --tail=100`). Tail envelopes with `make tail` (direct: `tail -f logs/events.jsonl`).
 
-Run every verification check: `make verify` (underlying command: `python3 verify/verify.py all`).
+Run every verification check: `make verify` (direct: `python3 verify/verify.py all`).
 
-Reproduce the short outage: `make outage-short` (underlying command: `python3 verify/verify.py outage-short`).
+Reproduce the short outage: `make outage-short` (direct: `python3 verify/verify.py outage-short`).
 
-Reproduce the long outage: `make outage-long` (underlying command: `python3 verify/verify.py outage-long`).
+Reproduce the long outage: `make outage-long` (direct: `python3 verify/verify.py outage-long`).
 
-Recover Debezium after retry exhaustion: `make recover` (underlying command: `docker compose restart debezium`).
+Recover Debezium after retry exhaustion: `make recover` (direct: `docker compose restart debezium`).
 
-Stop while preserving data and offsets: `make stop` (underlying command: `docker compose stop`). Restart likewise preserves them: `make restart` (underlying command: `docker compose restart`).
+Stop while preserving data and offsets: `make stop` (direct: `docker compose stop`). Restart likewise preserves them: `make restart` (direct: `docker compose restart`).
 
-Reset with `make reset` (underlying Compose command: `docker compose --profile tools down -v --remove-orphans`; it then removes the named host log files and the contents of `runs/` except `.gitkeep`). It deletes containers, volumes `dbzproof_pg_data` and `dbzproof_debezium_data`, `logs/events.jsonl`, `logs/receipts.jsonl`, `logs/receiver.log`, and the contents of `runs/` except `.gitkeep`.
+Reset with `make reset` (Compose command: `docker compose --profile tools down -v --remove-orphans`; it then removes the named host log files and the contents of `runs/` except `.gitkeep`). It deletes containers, volumes `dbzproof_pg_data` and `dbzproof_debezium_data`, `logs/events.jsonl`, `logs/receipts.jsonl`, `logs/receiver.log`, and the contents of `runs/` except `.gitkeep`.
 
 ## Contract
 
@@ -77,7 +79,7 @@ The HTTP sink uses a 5000 ms timeout, 10 retries, and a 3000 ms retry interval. 
 
 ## Limitations
 
-This is a local proof, not a production benchmark. Credentials are local superuser credentials. Delivery is not exactly once, and duplicates may occur during recovery. Delivery time is an observation, not a benchmark or SLA.
+The rig checks behaviour under local conditions. A production benchmark needs different workloads and measurements. Credentials belong to a local superuser. Recovery can produce duplicates; exactly-once delivery is not guaranteed. The delivery times are observations. They do not acquire an SLA by wishful thinking.
 
 ## Observed on first run
 

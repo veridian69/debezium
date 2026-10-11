@@ -2,14 +2,13 @@
 
 [Deutsche Fassung](operator-guide-de.md)
 
-This is the engineer-facing guide for running and understanding this proof.
+This guide explains how to run the proof, what it checks and where its limits lie.
 Run commands from the repository root; paths below are relative to it.
 For the Oracle Linux 8 target with Docker CE and no internet access, use
 [the offline deployment guide](oracle-linux-8-offline-en.md) for preparation,
 image transfer, installation and host-specific checks. Preparation happens on
 the internet-connected Ubuntu VM on the laptop; the OL8 target has no SELinux.
-This guide describes
-application behaviour independently of the host distribution.
+The application behaviour described here applies across host distributions.
 
 ## What the proof establishes
 
@@ -83,7 +82,7 @@ Do not expose these services by changing loopback bindings casually.
 Change these together if moving ports or credentials. Existing PostgreSQL
 volumes retain their original users and database; changing `POSTGRES_*`
 environment variables does not reinitialise them. Plan the database change
-explicitly rather than expecting an environment edit to migrate it.
+explicitly; an environment edit will not migrate it.
 
 The receiver and generator run as `HOST_UID:HOST_GID` from `.env` (default
 1000:1000). Check `id -u` and `id -g` on the target and set them appropriately
@@ -259,7 +258,7 @@ record. Its recorded expected rows use actual generated primary keys.
 
 ## Safe acceptance sequence
 
-The full verifier is an active test harness: it writes database rows, stops
+The full verifier changes the running stack: it writes database rows, stops
 the receiver, exhausts the sink retry budget and restarts services. Run it on
 this isolated proof, not a shared service needing uninterrupted availability.
 Do not run two verifiers or a verifier and a manual scenario concurrently;
@@ -279,7 +278,7 @@ make verify
 `make reset` runs Compose down with volumes and removes
 `dbzproof_pg_data`, `dbzproof_debezium_data`, `logs/events.jsonl`,
 `logs/receipts.jsonl`, `logs/receiver.log` and contents of `runs/` except
-`.gitkeep`. It is not an ordinary restart. Do not use global Docker prune.
+`.gitkeep`. This is a reset, not a restart. Do not use global Docker prune.
 
 Fresh snapshot verification requires both a fresh database/offset pair and
 fresh logs. Reusing old logs can count old snapshot rows; deleting logs alone
@@ -429,8 +428,8 @@ slot can retain WAL and fill PostgreSQL storage. Monitor retained WAL and disk
 space; this proof configures no operational WAL-retention limit or alerting.
 Do not drop the slot or delete offsets as routine recovery: that can remove
 needed change history and force a resnapshot. Recover delivery first, then
-confirm slot progress and backlog catch-up. A storage-full condition deserves
-a deliberate database recovery plan rather than blind repeated restarts.
+confirm slot progress and backlog catch-up. If storage is full, plan the database recovery.
+Repeated blind restarts will not make more space.
 
 ## Production implications
 

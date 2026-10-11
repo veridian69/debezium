@@ -1,17 +1,16 @@
-# Betriebsleitfaden: PostgreSQL → Debezium Server → HTTP-Empfänger
+# Operator Guide: PostgreSQL → Debezium Server → HTTP-Empfänger
 
 [English version](operator-guide-en.md)
 
-Dieser Leitfaden richtet sich an Entwicklerinnen und Entwickler, die diesen Proof of Concept betreiben und verstehen möchten.
-Führen Sie die Befehle im Stammverzeichnis des Repositorys aus; die unten angegebenen Pfade sind relativ dazu.
-Für das Zielsystem Oracle Linux 8 mit Docker CE und ohne Internetzugang verwenden Sie zur Vorbereitung,
-zum Image-Transfer, zur Installation und für hostspezifische Prüfungen
-den [Leitfaden zur Offline-Bereitstellung](oracle-linux-8-offline.md).
+Dieser Operator Guide erklärt, wie der Versuchsaufbau läuft, was er prüft und wo seine Grenzen liegen.
+Alle Befehle im Stammverzeichnis des Repositorys ausführen; die Pfade unten sind relativ dazu.
+Für Oracle Linux 8 mit Docker CE und ohne Internetzugang beschreibt der folgende Leitfaden
+die Vorbereitung, den Image-Transfer, die Installation und die hostspezifischen Prüfungen: [Leitfaden zur Offline-Bereitstellung](oracle-linux-8-offline.md).
 Die Vorbereitung erfolgt auf der mit dem Internet verbundenen Ubuntu-VM auf dem Laptop;
 auf dem OL8-Ziel ist SELinux nicht aktiviert. Dieser Leitfaden beschreibt
 das Anwendungsverhalten unabhängig von der Host-Distribution.
 
-## Was der Proof belegt
+## Was der Versuchsaufbau belegt
 
 Ein externes Schreibsystem ändert relationale Zeilen in PostgreSQL. Debezium erfasst den
 zeitkritischen Datenstrang und sendet einzelne Änderungs-Envelope an einen Java-HTTP-
@@ -24,10 +23,10 @@ gehören nicht zu diesem Stack.
 Es gibt weder Kafka noch einen Warteschlangendienst oder eine Ebene zur Aggregation von
 Geschäftsobjekten. Werden ein Kunde, eine Bestellung und zwei Bestellpositionen in einer
 Transaktion eingefügt, entstehen vier Zeilenereignisse. Sie werden nicht zu einer einzelnen
-Bestellnachricht zusammengefasst. Das ist relevant, wenn Sie den Umfang der nachgelagerten
-Transaktionsverarbeitung für eine echte Integration bewerten.
+Bestellnachricht zusammengefasst. Das bestimmt, wie viel nachgelagerte
+Transaktionsverarbeitung eine echte Integration braucht.
 
-Der Proof prüft die initiale Erfassung, Filterung, Vorher-/Nachher-Werte, das begrenzte
+Der Versuchsaufbau prüft die initiale Erfassung, Filterung, Vorher-/Nachher-Werte, das begrenzte
 HTTP-Wiederholungsverhalten und den Erhalt des Zustands nach einem Neustart. Er belegt weder
 Durchsatz noch produktionsnahe Latenz, Exactly-once-Zustellung oder Verfügbarkeit im Produktivbetrieb.
 
@@ -53,27 +52,27 @@ host verifier ── reads logs/runs, queries PostgreSQL, controls Compose
 Der Name des Compose-Projekts lautet `dbzproof`. Die Dienste heissen `postgres`, `receiver`,
 `debezium` und `generator`; der Generator verwendet das Profil `tools` und wird beim normalen
 Start nicht ausgeführt. Veröffentlichte Ports sind ausschliesslich an Loopback gebunden.
-Verwenden Sie innerhalb von Compose die Dienstnamen und nicht die Loopback-Adressen des Hosts.
+Innerhalb von Compose die Dienstnamen verwenden, nicht die Loopback-Adressen des Hosts.
 
 Die eingecheckte `.env` legt PostgreSQL `18.6-alpine`, Debezium Server
 `3.7.0.Final`, Maven `3.10.0-eclipse-temurin-25-alpine` und die Temurin-JRE des Empfängers
 `25.0.4_7-jre-alpine` fest. Das Image des Empfängers wird im Container gebaut;
 Java und Maven auf dem Host sind nicht erforderlich. Debezium verwendet die Laufzeit seiner
-eigenen Images. Verwenden Sie `.env` als Quelle der Versionsangaben, wenn Sie ein
-Bereitstellungspaket vorbereiten.
+eigenen Images. Beim Vorbereiten eines Bereitstellungspakets die Versionsangaben
+aus `.env` übernehmen.
 
 ## Voraussetzungen und gekoppelte Konfiguration
 
 Für die dokumentierte Verifizierungsumgebung benötigt der Host Docker CE, das Docker-Compose-
-Plugin, Bash, Make, curl und Python 3.12. Der Verifizierer verwendet ausschliesslich die
+Plugin, Bash, Make, curl und Python 3.12. Der Verifier verwendet ausschliesslich die
 Python-Standardbibliothek; eine pip-Umgebung und jq sind nicht erforderlich. Ausserdem ruft
 er Docker Compose und `tail` auf. Der Generator verwendet psql aus dem PostgreSQL-Image;
 psql auf dem Host ist optional.
 
 Die Zugangsdaten lauten `dbz` / `dbz`, die Datenbank heisst `appdb`. Es handelt sich um
 Superuser-Zugangsdaten für die Demonstration; der Netzwerkverkehr zum Empfänger verwendet
-unverschlüsseltes HTTP ohne Authentifizierung. Machen Sie diese Dienste nicht beiläufig
-durch Änderungen an den Loopback-Bindings erreichbar.
+unverschlüsseltes HTTP ohne Authentifizierung. Diese Dienste nicht durch eine beiläufige Änderung
+der Loopback-Bindings nach aussen öffnen.
 
 `.env` konfiguriert **nicht** alle Stellen, an denen Ports und Zugangsdaten verwendet werden:
 
@@ -83,14 +82,14 @@ durch Änderungen an den Loopback-Bindings erreichbar.
   in seinem psql-Wrapper die fest eingetragenen Datenbank-Benutzernamen und -Datenbanknamen `dbz` und `appdb`.
 - Die Health-URLs, `psql` und `seed` im `Makefile` enthalten diese Literale ebenfalls.
 
-Passen Sie diese Stellen gemeinsam an, wenn Sie Ports oder Zugangsdaten ändern. Bestehende
+Bei Änderungen an Ports oder Zugangsdaten diese Stellen gemeinsam anpassen. Bestehende
 PostgreSQL-Volumes behalten ihre ursprünglichen Benutzer und Datenbanken; Änderungen an
-`POSTGRES_*`-Umgebungsvariablen initialisieren sie nicht neu. Planen Sie die Änderung der
-Datenbank ausdrücklich, statt davon auszugehen, dass eine Anpassung der Umgebung sie migriert.
+`POSTGRES_*`-Umgebungsvariablen initialisieren sie nicht neu. Die Datenbankänderung ausdrücklich planen;
+eine Anpassung der Umgebung übernimmt keine Migration.
 
 Empfänger und Generator laufen mit `HOST_UID:HOST_GID` aus `.env` (Standardwert
-1000:1000). Prüfen Sie auf dem Zielsystem `id -u` und `id -g` und setzen Sie die Werte vor
-dem Start passend. Die Host-Verzeichnisse `logs/` und `runs/` müssen für diese Identität
+1000:1000). Auf dem Zielsystem `id -u` und `id -g` prüfen und die Werte vor
+dem Start passend setzen. Die Host-Verzeichnisse `logs/` und `runs/` müssen für diese Identität
 beschreibbar sein. Berechtigungen des Image-Verzeichnisses setzen die Berechtigungen eines
 Bind-Mounts nicht ausser Kraft.
 
@@ -125,15 +124,15 @@ Debezium bei Bedarf eine gefilterte Publication erstellen kann; beim normalen er
 wird die mit SQL erstellte Publication verwendet.
 
 Für alle drei erfassten Tabellen ist `REPLICA IDENTITY FULL` gesetzt. Dadurch stehen bei
-Updates und Deletes die alten Zeilenwerte zur Verfügung, sodass der Verifizierer geänderte
+Updates und Deletes die alten Zeilenwerte zur Verfügung, sodass der Verifier geänderte
 Werte in `before` prüfen kann. Ein Primärschlüssel identifiziert zwar eine Zeile, liefert
-aber nicht das vollständige alte Zeilenabbild, das dieser Proof benötigt. FULL erhöht den
-Replikationsaufwand und das Datenvolumen; bewerten Sie diese Kosten für echte Tabellen.
+aber nicht das vollständige alte Zeilenabbild, das dieser Versuchsaufbau benötigt. FULL erhöht den
+Replikationsaufwand und das Datenvolumen; diese Kosten für echte Tabellen bewerten.
 
 Init-Skripte werden nur ausgeführt, wenn PostgreSQL ein leeres Daten-Volume initialisiert.
-Änderungen am Schema oder an Replikations-SQL werden nicht übernommen, wenn Sie eine
-bestehende Datenbank neu starten. Verwenden Sie für beibehaltene Daten gezielte
-Migrations-SQL oder setzen Sie eine nur für die Reproduktion verwendete Umgebung vollständig zurück.
+Ein Neustart einer bestehenden Datenbank übernimmt keine Änderungen am Schema oder
+an Replikations-SQL. Für beibehaltene Daten gezielte Migrations-SQL verwenden;
+eine reine Reproduktionsumgebung kann vollständig zurückgesetzt werden.
 
 ## Initialer Snapshot und Streaming
 
@@ -142,16 +141,16 @@ die bereits vorhandenen erfassten Zeilen und verarbeitet anschliessend WAL-Ände
 Das Seed-SQL wird vor dem Start von Debezium ausgeführt. Ein sauberer erster Start liefert
 daher 15 `op=r`-Envelope. Die erwarteten Anzahlen stehen in `postgres/expected_snapshot.json`.
 
-Snapshot-Markierungen sind nicht auf die Zeichenfolge `true` beschränkt. Der Verifizierer
+Snapshot-Markierungen sind nicht auf die Zeichenfolge `true` beschränkt. Der Verifier
 akzeptiert in `source.snapshot` die Werte `true`, `first`, `last`,
 `first_in_data_collection` und `last_in_data_collection`. Streaming-Ereignisse enthalten
-normalerweise die Zeichenfolge `false`. Prüfen Sie die tatsächlichen Daten, statt diese
+normalerweise die Zeichenfolge `false`. Die tatsächlichen Daten prüfen, statt diese
 Zeichenfolgen anhand ihres Wahrheitswerts in Booleans umzuwandeln.
 
 Offsets werden unter `/debezium/data/offsets.dat` im benannten Volume
 `dbzproof_debezium_data` gespeichert. Das konfigurierte Intervall zum Schreiben der Offsets
 beträgt 0. Bei einem normalen Neustart bleibt dieser Zustand erhalten; der Connector sollte
-ohne neuen Snapshot fortfahren. Der Verifizierer prüft dieses Verhalten; eine Offset-
+ohne neuen Snapshot fortfahren. Der Verifier prüft dieses Verhalten; eine Offset-
 Einstellung allein ist kein Nachweis. Werden Offsets gelöscht, während eine befüllte
 Datenbank erhalten bleibt, kann ein neuer Snapshot aller aktuell erfassten Zeilen entstehen
 anstelle der ursprünglichen Seed-Fixture mit 15 Zeilen.
@@ -164,7 +163,7 @@ Der Empfänger entfernt überflüssige JSON-Leerzeichen und schreibt das JSON in
 behält dabei aber Felder und Werte bei; er entfernt keine Metadaten, packt Zeilen nicht aus
 und setzt keine Geschäftsobjekte zusammen.
 
-| Feld | Bedeutung in diesem Proof |
+| Feld | Bedeutung in diesem Versuchsaufbau |
 |---|---|
 | `op` | `r` Snapshot-Lesevorgang, `c` Anlegen, `u` Aktualisieren, `d` Löschen |
 | `before` | alte Zeile bei Update/Delete; bei Create/Snapshot null |
@@ -194,11 +193,11 @@ variieren. Tatsächliche Envelope enthalten weitere Quell- und Zeilenfelder.
 {"before":{"id":10,"sku":"SKU-demo-B"},"after":null,"source":{"schema":"timecritical","table":"order_items","snapshot":"false","txId":803,"lsn":2300},"op":"d","transaction":null}
 ```
 Die beobachtete HTTP-Darstellung enthält keinen separaten Record-Key- oder Topic-Header.
-Identifizieren Sie eine Zeile über `source.schema`, `source.table` und `after.id` oder bei
-einem Delete über `before.id`. Das Topic-Präfix `plumbing` bedeutet nicht, dass der Topic-
+Eine Zeile über `source.schema`, `source.table` und `after.id` oder bei
+einem Delete über `before.id` identifizieren. Das Topic-Präfix `plumbing` bedeutet nicht, dass der Topic-
 Name als Ziel-Header übertragen wird. Receipt-Header enthalten HTTP-Kontext; die beobachteten
 Werte `x-debezium-__debezium.context.*` sind base64-kodiertes JSON und keine Zeilenschlüssel.
-Der Verifizierer protokolliert vorhandene Header, verlangt sie aber nicht.
+Der Verifier protokolliert vorhandene Header, verlangt sie aber nicht.
 
 Delete-Tombstones sind mit `tombstones.on.delete=false` deaktiviert; Delete-
 **Envelope** bleiben aktiviert. Der Empfänger akzeptiert leere oder JSON-null-Bodies mit
@@ -226,10 +225,10 @@ auslösen. Eine Duplikatunterdrückung gibt es nicht.
 | `logs/receiver.log` | Diagnosemeldungen des Empfängers | Schreibfehler und Request-Fehler |
 | `runs/<RUN_ID>/expected.jsonl` | die sieben vom Generator erwarteten Änderungen | unabhängige Erwartungen für den Abgleich |
 | `runs/<RUN_ID>/manifest.json` | Szenario-ID, Zeiten und Anzahlen | Zuordnung eines Durchlaufs |
-| `runs/verify-*.json` | Ergebnisse und Beobachtungen des Verifizierers | Abnahmenachweis aufbewahren |
+| `runs/verify-*.json` | Ergebnisse und Beobachtungen des Verifiers | Abnahmenachweis aufbewahren |
 
 Der Receipt-`seq`-Wert liegt nur im Arbeitsspeicher und beginnt nach jedem Neustart des
-Empfängers erneut. Behandeln Sie es nicht als global eindeutige Ereignis-ID. Für die
+Empfängers erneut. Der Wert ist keine global eindeutige Ereignis-ID. Für die
 Zeitmessung werden derzeit die geordneten Event-Receipts mit den Zeilen der Ereignisdatei
 abgeglichen. Fehlende Receipts können diesen Abgleich beeinträchtigen; erfolgreiche
 Zustellung und Latenznachweis sind getrennte Aussagen. Der Health-Check des Empfängers
@@ -254,9 +253,9 @@ make restart                       # restart all services; preserve state
 make down                          # remove containers/network; retain volumes and host files
 make up                            # recreate services using retained state
 ```
-`make up` baut immer zuerst den Empfänger. Verwenden Sie diesen Befehl auf dem mit dem
-Internet verbundenen Vorbereitungshost. Auf dem Offline-Ziel verwenden Sie die Befehle
-des Offline-Leitfadens zum Start ohne Build und ohne Pull mit den übertragenen Images,
+`make up` baut immer zuerst den Empfänger. Diesen Befehl auf dem Vorbereitungshost
+mit Internetzugang verwenden. Auf dem Offline-Ziel mit den übertragenen Images
+ohne Build und Pull starten, wie im Offline-Leitfaden beschrieben,
 auch nach einem vollständigen Reset der Testumgebung. `make seed` wendet das idempotente
 Seed-SQL erneut an; es setzt keinen sauberen Snapshot-Zustand her. `ON CONFLICT DO NOTHING`
 verhindert doppelte Seed-Einträge, setzt geänderte Felder vorhandener Zeilen aber nicht auf
@@ -274,19 +273,18 @@ Primärschlüssel.
 
 ## Sichere Abnahmefolge
 
-Der vollständige Verifizierer ist ein aktiver Test-Harness: Er schreibt Datenbankzeilen,
+Der vollständige Verifier ist ein aktiver Test-Harness: Er schreibt Datenbankzeilen,
 stoppt den Empfänger, lässt das Retry-Limit des Sinks ausschöpfen und startet Dienste neu.
-Führen Sie ihn auf diesem isolierten Proof aus und nicht auf einem gemeinsam genutzten
-Dienst, der ohne Unterbrechung verfügbar sein muss. Führen Sie nicht zwei Verifizierer
-oder gleichzeitig einen Verifizierer und ein manuelles Szenario aus; Run-IDs verwenden
+Nur auf diesem isolierten Versuchsaufbau ausführen. Ein gemeinsam genutzter Dienst,
+der ohne Unterbrechung verfügbar sein muss, ist dafür ungeeignet. Keine zwei Verifier
+oder einen Verifier und ein manuelles Szenario gleichzeitig ausführen; Run-IDs verwenden
 Zeitstempel mit einer Auflösung von einer Sekunde, und die gemeinsamen Logs werden global
 ausgewertet.
 
-Die folgende Abfolge gilt für den verbundenen Vorbereitungshost. Ersetzen Sie auf dem
-Offline-Ziel `make up` durch den Startbefehl des Offline-Leitfadens ohne Build und Pull.
-Sichern Sie für eine reproduzierbare Abnahme des ersten Starts zunächst alle gewünschten
-Logs und Berichte und verwerfen Sie danach ausdrücklich den flüchtigen Zustand dieses
-Projekts:
+Die folgende Abfolge gilt für den Vorbereitungshost mit Internetzugang. Auf dem
+Offline-Ziel `make up` durch den Startbefehl des Offline-Leitfadens ohne Build und Pull ersetzen.
+Für eine reproduzierbare Abnahme des ersten Starts zunächst alle benötigten Logs
+und Berichte sichern, danach den flüchtigen Zustand dieses Projekts ausdrücklich verwerfen:
 
 ```sh
 make reset                         # DESTRUCTIVE: see exact scope below
@@ -296,7 +294,7 @@ make verify
 `make reset` führt Compose mit Volumes herunter und entfernt
 `dbzproof_pg_data`, `dbzproof_debezium_data`, `logs/events.jsonl`,
 `logs/receipts.jsonl`, `logs/receiver.log` sowie den Inhalt von `runs/` ausser
-`.gitkeep`. Das ist kein gewöhnlicher Neustart. Verwenden Sie kein globales Docker-Prune.
+`.gitkeep`. Das ist kein gewöhnlicher Neustart. Kein globales Docker-Prune verwenden.
 
 Für die Verifizierung eines frischen Snapshots müssen sowohl das Datenbank-/Offset-Paar als
 auch die Logs frisch sein. Alte Logs können dazu führen, dass alte Snapshot-Zeilen
@@ -340,8 +338,8 @@ python3 verify/verify.py all
 einen vorhandenen manuellen Durchlauf ein. `bulk --run-id` liest die Erwartungen eines
 vorhandenen Durchlaufs und ergänzt eigene Diagnose-Updates. `all` erstellt eine
 Szenario-ID und übergibt sie an `bulk`. Jeder Aufruf schreibt einen Bericht mit Zeitstempel
-im JSON-Format und endet bei Erfolg mit 0, bei einem Fehler mit 1. Lesen Sie den
-benannten Bericht, bevor Sie eine fehlgeschlagene Prüfung erneut ausführen.
+im JSON-Format und endet bei Erfolg mit 0, bei einem Fehler mit 1. Vor dem nächsten Versuch einer fehlgeschlagenen Prüfung
+den benannten Bericht lesen.
 
 Der Abgleich verwendet erwartete Schlüssel und Teilmengen der Vorher-/Nachher-Werte aus dem
 Generator; die Erwartungen werden nicht anhand der beobachteten Zustellung rekonstruiert.
@@ -355,8 +353,8 @@ T1-Ereignisse. Ein PASS ist keine Garantie für Exactly-once-Zustellung.
 Das HTTP-Sink-Timeout beträgt 5000 ms, die Anzahl der Wiederholungen 10 und das Intervall
 zwischen Wiederholungen 3000 ms. Das Retry-Budget ist begrenzt. Verbindungsablehnungen und
 Timeouts verbrauchen unterschiedlich viel Zeit; aus diesen Einstellungen ergibt sich daher
-keine einheitliche garantierte Ausfalldauer. Verwenden Sie die Laufzeit, die Anzahl der
-Sendeversuche und die Logs des Verifizierers als Nachweis.
+keine einheitliche garantierte Ausfalldauer. Als Nachweis dienen die Laufzeit, die Anzahl der
+Sendeversuche und die Logs des Verifiers.
 
 Im festgelegten, beobachteten Stack beendet das Ausschöpfen der Wiederholungen die
 eingebettete Engine, während der Container weiterläuft. `/q/health` liefert HTTP 503/DOWN,
@@ -364,7 +362,7 @@ und Compose markiert den Container nach einiger Zeit als fehlerhaft. Es ist kein
 Restart-Policy konfiguriert. Ein laufender Container allein belegt deshalb nicht, dass die
 Erfassung funktioniert.
 
-Stellen Sie den Empfänger wieder her und starten Sie Debezium neu, damit die Engine erneut
+Den Empfänger wiederherstellen und Debezium neu starten, damit die Engine erneut
 geöffnet wird:
 
 ```sh
@@ -384,13 +382,13 @@ Wiederherstellungszeit hängen vom jeweiligen Durchlauf ab.
 
 ## Logs ohne jq untersuchen
 
-Geben Sie das letzte Envelope mit der Python-Standardbibliothek formatiert aus:
+Das letzte Envelope mit der Python-Standardbibliothek formatiert ausgeben:
 
 
 ```sh
 tail -n 1 logs/events.jsonl | python3 -m json.tool
 ```
-Zählen Sie Operationen und Tabellen und geben Sie das letzte Event-Receipt aus:
+Operationen und Tabellen zählen und das letzte Event-Receipt ausgeben:
 
 
 ```sh
@@ -414,11 +412,11 @@ if receipts.exists():
         print(json.dumps(events[-1], indent=2))
 PYCODE
 ```
-Führen Sie diese Befehle bei ruhenden Logs aus oder wiederholen Sie sie nach einem
-gleichzeitigen Schreibvorgang an der letzten Zeile; der Verifizierer selbst toleriert eine
-unvollständige letzte JSONL-Zeile. Senden Sie während der Abnahme keine Test-JSON per POST
+Diese Befehle bei ruhenden Logs ausführen oder nach einem
+gleichzeitigen Schreibvorgang an der letzten Zeile wiederholen; der Verifier selbst toleriert eine
+unvollständige letzte JSONL-Zeile. Während der Abnahme keine Test-JSON per POST senden
 an `/events`: Jedes gültige JSON-Objekt wird zu einer Zustellzeile und kann die Annahmen
-des Verifizierers ungültig machen.
+des Verifiers ungültig machen.
 
 ## Fehlerbehebung und zurückgehaltenes WAL
 
@@ -433,8 +431,8 @@ des Verifizierers ungültig machen.
 | Generator weist ID zurück | eine neue gültige ID verwenden; bisherige Run-Belege aufbewahren, statt sie zu überschreiben |
 | Seed-/Schema-Änderung scheint ignoriert | Init-Skripte laufen nur bei einem leeren PostgreSQL-Daten-Volume |
 
-Prüfen Sie die Mitgliedschaft der Publication, die Replica Identity und den Fortschritt des
-Slots mit:
+Die Mitgliedschaft der Publication, die Replica Identity und den Fortschritt des
+Slots prüfen:
 
 ```sh
 docker compose exec -T postgres psql -U dbz -d appdb <<'SQL'
@@ -449,13 +447,13 @@ FROM pg_replication_slots;
 SQL
 ```
 Replica Identity `f` bedeutet FULL. Solange der Verbraucher ausgefallen oder blockiert ist,
-kann der Slot WAL zurückhalten und den PostgreSQL-Speicher füllen. Überwachen Sie das
-zurückgehaltene WAL und den Speicherplatz; dieser Proof konfiguriert weder eine operative
-Grenze für die WAL-Aufbewahrung noch Warnmeldungen dazu. Löschen Sie den Slot oder die
-Offsets nicht als routinemässige Wiederherstellungsmassnahme: Dadurch kann benötigter
-Änderungsverlauf verloren gehen und ein erneuter Snapshot erzwungen werden. Stellen Sie
-zuerst die Zustellung wieder her und prüfen Sie anschliessend den Slot-Fortschritt sowie
-den Abbau des Rückstands. Bei vollem Speicher ist ein geplanter Datenbank-Wiederherstellungsplan
+kann der Slot WAL zurückhalten und den PostgreSQL-Speicher füllen. Das
+zurückgehaltene WAL und den Speicherplatz überwachen; dieser Versuchsaufbau konfiguriert weder eine operative
+Grenze für die WAL-Aufbewahrung noch Warnmeldungen dazu. Den Slot oder die
+Offsets nicht als routinemässige Wiederherstellungsmassnahme löschen: Dadurch kann benötigter
+Änderungsverlauf verloren gehen und ein erneuter Snapshot erzwungen werden. Zuerst
+die Zustellung wiederherstellen und anschliessend den Slot-Fortschritt sowie
+den Abbau des Rückstands prüfen. Bei vollem Speicher ist ein geplanter Datenbank-Wiederherstellungsplan
 erforderlich; wiederholte blinde Neustarts reichen nicht aus.
 
 ## Auswirkungen auf den Produktivbetrieb
@@ -463,8 +461,8 @@ erforderlich; wiederholte blinde Neustarts reichen nicht aus.
 Dieser Empfänger bietet weder Authentifizierung noch eine Begrenzung der Request-Grösse,
 fachliche Validierung, Log-Rotation oder Duplikatunterdrückung. Zudem liest er jeden
 Request-Body vollständig in den Arbeitsspeicher. Die Append-Datei ist ein Nachweis und keine
-Warteschlange zur Verarbeitung von Geschäftsdaten. Planen Sie Aufbewahrung, Backups und
-Bestätigungssemantik nachgelagerter Systeme, bevor Sie die Datei dafür verwenden.
+Warteschlange zur Verarbeitung von Geschäftsdaten. Vor einer solchen Verwendung Aufbewahrung, Backups und
+Bestätigungssemantik nachgelagerter Systeme planen.
 Benannte Volumes und Bind-Mounts sind persistenter Speicher, aber keine Backups.
 
 Für den Produktivbetrieb braucht es begrenzte Datenbankberechtigungen, abgesicherten und
@@ -474,5 +472,5 @@ Duplikatbehandlung, Transaktionen, Schemaänderungen und Ausfälle nötig, die l
 begrenzte Sink-Retry-Budget dauern.
 Lokale Zustellzeiten verwenden Quellzeitstempel und Receipt-Zeitstempel nach bestem Bemühen;
 sie hängen von den Uhren und der Zuordnung der Receipts ab. Es sind Beobachtungen und kein
-SLA. Erfolgreiche Durchläufe des Proofs liefern Anhaltspunkte für diesen Entwurf, ersetzen
+SLA. Erfolgreiche Durchläufe des Versuchsaufbaus liefern Anhaltspunkte für diesen Entwurf, ersetzen
 ihn aber nicht.
