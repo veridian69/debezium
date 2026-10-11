@@ -1,5 +1,8 @@
 # Debezium Server plumbing proof
 
+Detailed documentation: [operator guide](docs/operator-guide.md) and
+[offline Oracle Linux 8 deployment](docs/oracle-linux-8-offline.md).
+
 ## What this is
 
 A local, reproducible proof of PostgreSQL change capture through Debezium Server into a Java HTTP receiver. It models time-critical row changes and a separate, uncaptured bulk strand. It is for local development only.

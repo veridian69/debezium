@@ -1,0 +1,12 @@
+# Copy to project-root compose.override.yaml on the offline OL8 host.
+# Start with: docker compose up -d --wait --no-build --pull never postgres receiver debezium
+# Requires preloaded images. Target: OL8 Docker CE, SELinux disabled.
+services:
+  postgres:
+    pull_policy: never
+  receiver:
+    pull_policy: never
+  debezium:
+    pull_policy: never
+  generator:
+    pull_policy: never

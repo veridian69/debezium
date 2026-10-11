@@ -12,10 +12,12 @@ interval between retries. A connection refusal fails fast, so the practical
 retry window is about `10 x 3 s = 30 s`. If attempts consume their full
 timeouts, the worst case is about `10 x (5 + 3) s = 80 s`.
 
-Retries are finite. After they are exhausted, Debezium Server stops and the
-container exits; there is no restart policy by design. Recovery is
-`docker compose start debezium`. These are configured behaviours; the
-verifier records the observed behaviour after exercising the outage cases.
+Retries are finite. Observed on 3.7.0.Final: exhaustion stops the embedded
+engine, but the container remains running. `/q/health` returns 503 DOWN and
+Compose marks it unhealthy. There is no restart policy by design, and an
+exit-based restart policy would not recover a process that has not exited.
+Recovery is `docker compose restart debezium` (`make recover`); the verifier
+exercises this and checks delivery of the backlog from persisted offsets.
 
 The HTTP sink's runtime headers, including the `X-DEBEZIUM-` prefix and
 base64-encoded values, are observed from the runtime logs and are not
